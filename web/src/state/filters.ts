@@ -68,8 +68,8 @@ export const selected = signal<string>('') // selected county fips (linked selec
 export const compare = signal<[string, string]>(['', ''])
 export const sheetOpen = signal(false)
 
-/** Default home county: Perry County (29157). Overridden per device via localStorage. */
-export const DEFAULT_HOME = '29157'
+/** No default home county: each visitor picks their own, stored per device in localStorage. */
+export const DEFAULT_HOME = ''
 export const homeCounty = signal<string>((() => { try { return localStorage.getItem('homeCounty') || DEFAULT_HOME } catch { return DEFAULT_HOME } })())
 effect(() => { try { localStorage.setItem('homeCounty', homeCounty.value) } catch { /* private mode */ } })
 

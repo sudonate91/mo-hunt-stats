@@ -26,7 +26,6 @@ export interface H2H {
   mixColors: string[]
 }
 
-const DEFAULT_A = '29071' // Franklin
 
 /** County-index × portion-code totals for one season. */
 function countyPortion(d: Dataset, m: Uint8Array, y: number): Float64Array[] {
@@ -48,13 +47,15 @@ export function useH2H(): H2H | null {
     const yi = d.years.indexOf(y)
     const col = all.map((s) => (yi < 0 ? NaN : s[yi]))
 
-    // Defaults: home county (or Franklin) vs the top county this season.
-    const pa = resolvePlace(ka || home || DEFAULT_A, d, cs) ?? resolvePlace(DEFAULT_A, d, cs)
+    // Defaults: side A is the home county when one is set, else the top county this season;
+    // side B is the best county that is not A. Nothing is hard-coded so any visitor gets a sensible pair.
+    const order = col.map((v, i) => [v, i] as const).filter(([v]) => Number.isFinite(v)).sort((p, q) => q[0] - p[0])
+    const topKey = order.length ? d.dict.county[order[0][1]] : ''
+    const pa = resolvePlace(ka || home || topKey, d, cs) ?? (topKey ? resolvePlace(topKey, d, cs) : null)
     if (!pa) return null
     // B defaults to the best county this season that is not A; also used when B would duplicate A.
     let pb = kb ? resolvePlace(kb, d, cs) : null
     if (!pb || pb.key === pa.key) {
-      const order = col.map((v, i) => [v, i] as const).filter(([v]) => Number.isFinite(v)).sort((p, q) => q[0] - p[0])
       const top = order.find(([, i]) => d.dict.county[i] !== pa.key)
       pb = top ? resolvePlace(d.dict.county[top[1]], d, cs) : null
     }
