@@ -33,7 +33,7 @@ export default function BoardView() {
       </div>
       <div class="flex flex-col gap-3">
         <div class="order-first lg:order-last bg-bg-2 border border-line rounded-xl p-3 min-h-[460px]">
-          <HBarChart bars={bars} maxBars={15} format={fmtV} units={def.units} onSelect={(id) => (selected.value = id)}
+          <HBarChart id="board-top15" bars={bars} maxBars={15} format={fmtV} units={def.units} onSelect={(id) => (selected.value = id)}
             title={`Top 15 · ${def.label} · ${yr ? seasonLabel(sp, yr) : ''}`} />
         </div>
         {rows.length

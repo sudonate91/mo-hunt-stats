@@ -46,6 +46,8 @@ button, a, select, input[type="range"] { min-height: 44px; }
 .county.selected { stroke: var(--color-sel); stroke-width: 2.5; }
 .county.home { stroke: var(--color-blaze-2); stroke-width: 2; }
 .county.dim { opacity: 0.35; }
+.county.focus { stroke: var(--color-fg); }
+.county:focus { outline: none; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }

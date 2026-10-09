@@ -1,6 +1,6 @@
 /** County dashboard for one county: ranks, trend, portion mix, species shares, CWD, neighbors, top-10 streak. */
 import { useMemo } from 'preact/hooks'
-import { countyMetric, countySeries, rankValues, streak } from '../data/metrics'
+import { countyMetric, countySeries, rankMetric, streak } from '../data/metrics'
 import { PORTION_LABEL, SUBTOTAL_PORTIONS } from '../data/query'
 import { attrs, counties, countyByFips, cwd, ds, regionOf } from '../state/data'
 import { filter, homeCounty, metric, selected, view, year } from '../state/filters'
@@ -38,11 +38,11 @@ export function CountyCard({ fips, full = false, onClose }: { fips: string; full
   const core = useMemo(() => {
     if (!d || !cs || ci < 0) return null
     const res = countyMetric(d, cs, { ...f, region: '' }, rOf, mId, y, at)
-    const ranks = rankValues(res.values)
+    const ranks = rankMetric(res.values, res.def)
     const reg = rOf(fips)
     const regVals = res.values.map((v, i) => (rOf(d.dict.county[i]) === reg ? v : NaN))
-    const regRanks = rankValues(regVals)
-    const nFinite = (a: Float64Array) => a.reduce((n, v) => n + (Number.isFinite(v) ? 1 : 0), 0)
+    const regRanks = rankMetric(regVals, res.def)
+    const nRanked = (r: Int32Array) => r.reduce((n, v) => n + (v > 0 ? 1 : 0), 0) // rank 0 = unranked
     const series = countySeries(d, { ...f, region: '' }, rOf)
     const yi = d.years.indexOf(y)
     const top10 = yi >= 0 ? streak(series.map((s) => s.slice(0, yi + 1)), ci, 10) : 0
@@ -62,8 +62,8 @@ export function CountyCard({ fips, full = false, onClose }: { fips: string; full
     }).sort((a, b) => desc(a.value, b.value))
     return {
       res, reg, top10, trend, neighbors,
-      state: [ranks[ci], nFinite(res.values)] as [number, number],
-      region: [regRanks[ci], nFinite(regVals)] as [number, number],
+      state: [ranks[ci], nRanked(ranks)] as [number, number],
+      region: [regRanks[ci], nRanked(regRanks)] as [number, number],
     }
   }, [d, cs, f, rOf, mId, y, at, ci, fips, c])
 
@@ -114,12 +114,12 @@ export function CountyCard({ fips, full = false, onClose }: { fips: string; full
               : <>Not in the statewide top 10 for harvest in {season}.</>}
           </p>
           <Section title={`${d.years.length}-season trend`}>
-            <LineChart x={d.years} series={core.trend} units="Animals checked per season" height={150} title={`${c.name} vs state average`} />
+            <LineChart id="county-trend" x={d.years} series={core.trend} units="Animals checked per season" height={150} title={`${c.name} vs state average`} />
           </Section>
         </div>
         <div>
           <Section title={`Portion mix · ${season}`}>
-            {mix.bars.length ? <HBarChart bars={mix.bars} units="Animals checked" /> : <p class="text-sm text-fg-3">No harvest under the current filter.</p>}
+            {mix.bars.length ? <HBarChart id="county-mix" title={`${c.name} portion mix · ${season}`} bars={mix.bars} units="Animals checked" /> : <p class="text-sm text-fg-3">No harvest under the current filter.</p>}
           </Section>
           {cls && <DeerShares bucks={cls.get('antlered_buck') ?? 0} does={cls.get('doe') ?? 0} buttons={cls.get('button_buck') ?? 0} total={total} season={season} />}
           {mix.tk && <TurkeyShares publicLand={mix.tk.publicLand} crossbow={mix.tk.crossbow} season={season} />}

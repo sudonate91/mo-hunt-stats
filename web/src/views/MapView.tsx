@@ -5,6 +5,7 @@ import { CountyCard } from '../components/CountyCard'
 import { seasonLabel } from '../components/charts/format'
 import { LineChart, type LineSeries } from '../components/charts/LineChart'
 import { Icon } from '../components/Icon'
+import { ShareButton } from '../components/ShareButton'
 import { applicableMetric, clampYear, metricsFor, yearsInRange } from '../components/map/derive'
 import { SmallMultiples } from '../components/map/SmallMultiples'
 import { StatsStrip, type StripData } from '../components/map/StatsStrip'
@@ -114,6 +115,7 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
               {metricsFor(sp).map((md) => <option key={md.id} value={md.id}>{md.label}</option>)}
             </select>
           </label>
+          {!multi && <ShareButton target="map-choropleth" label="Share map" />}
           <button type="button" aria-pressed={multiples} onClick={() => setMultiples(!multiples)}
             class={`tap rounded-lg px-3 text-sm border inline-flex items-center gap-1.5 ${multiples ? 'bg-blaze text-black border-blaze font-semibold' : 'border-line text-fg-2 hover:border-fg-3'}`}>
             <Icon name="seasons" size={18} /><span class="hidden sm:inline">Every season</span><span class="sm:hidden">All</span>
@@ -127,15 +129,17 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
         ) : (
           <div onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => (start.current = null)} class="max-w-[760px] mx-auto">
             <h2 class="sr-only">{def.label} by county, {season}</h2>
-            <Choropleth values={res.values} def={def} onSelect={select} selected={sel} homeCounty={home} dimOutsideRegion={f.region}
-              label={`${def.label} by county, ${season}. ${def.units}.`} />
+            <figure id="map-choropleth" class="m-0" data-share-title={`${def.label} by county · ${scope} · ${season}`}>
+              <Choropleth values={res.values} def={def} onSelect={select} selected={sel} homeCounty={home} dimOutsideRegion={f.region}
+                label={`${def.label} by county, ${season}. ${def.units}.`} />
+            </figure>
           </div>
         )}
       </div>
 
       <aside class="min-w-0 mt-4 md:mt-0 flex flex-col gap-4" aria-label="Chart and county details">
         <div class="rounded-xl bg-bg-2 border border-line p-3">
-          <LineChart x={years} series={series} height={200} units="Animals checked per season"
+          <LineChart id="map-trend" x={years} series={series} height={200} units="Animals checked per season"
             title={selIdx >= 0 ? `${scope} total vs ${selName}` : `${scope} total by season`} />
           {selIdx < 0 && <p class="text-xs text-fg-3 mt-1">Tap a county to compare it here.</p>}
         </div>

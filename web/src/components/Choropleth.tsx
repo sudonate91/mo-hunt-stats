@@ -1,9 +1,11 @@
 /**
  * SVG county choropleth from build-time projected paths (src/generated/map.json).
  * Quantile classes; sequential palette or diverging centered on 0. Tap/Enter selects, mouse hover shows a tooltip.
+ * Keyboard: the map is one tab stop (roving focus); arrow keys move to the nearest county in that direction,
+ * Home/End jump to the first/last county, Enter/Space selects.
  */
 import { useSignal } from '@preact/signals'
-import { useId, useMemo } from 'preact/hooks'
+import { useId, useMemo, useRef, useState } from 'preact/hooks'
 import { formatMetric, type MetricDef } from '../data/metrics'
 import map from '../generated/map.json'
 import { ds, regionOf } from '../state/data'
@@ -15,6 +17,27 @@ const PATHS = Object.entries(map.paths as Record<string, string>)
 const NAMES = map.names as Record<string, string>
 const LABELS = map.labels as unknown as Record<string, [number, number]>
 export const MAP_ASPECT = `${map.width} / ${map.height}`
+
+/** Label point of each county (falls back to the map center) for directional arrow-key moves. */
+const CENTER: [number, number] = [map.width / 2, map.height / 2]
+const POS = PATHS.map(([f]) => LABELS[f] ?? CENTER)
+
+/** Index of the nearest county from `from` in an arrow direction; favours counties close to the axis. */
+function neighbor(from: number, key: string): number {
+  const [x0, y0] = POS[from]
+  const [ux, uy] = key === 'ArrowLeft' ? [-1, 0] : key === 'ArrowRight' ? [1, 0] : key === 'ArrowUp' ? [0, -1] : [0, 1]
+  let best = from, bestScore = Infinity
+  for (let i = 0; i < POS.length; i++) {
+    if (i === from) continue
+    const dx = POS[i][0] - x0, dy = POS[i][1] - y0
+    const along = dx * ux + dy * uy
+    if (along <= 0) continue
+    const across = Math.abs(dx * uy - dy * ux)
+    const score = along + 2 * across
+    if (score < bestScore) { bestScore = score; best = i }
+  }
+  return best
+}
 
 export interface ChoroplethProps {
   values: Float64Array // per county index, ds.dict.county order
@@ -36,6 +59,9 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
   const idx = useMemo(() => new Map((order ?? []).map((f, i) => [f, i])), [order])
   const sc = useMemo(() => scale ?? makeScale([values], def), [scale, values, def])
   const inRegion = regionOf.value
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [active, setActive] = useState(-1) // roving-focus index into PATHS
+  const [focusFips, setFocusFips] = useState('') // county with keyboard focus (drawn as an outline)
 
   const valueOf = (fips: string) => { const i = idx.get(fips); return i === undefined ? NaN : values[i] }
   const describe = (fips: string) => {
@@ -49,7 +75,7 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
     const cls = `county${fips === selected ? ' selected' : ''}${fips === homeCounty ? ' home' : ''}${dimOutsideRegion && inRegion(fips) !== dimOutsideRegion ? ' dim' : ''}`
     return (
       <path key={fips} d={d} data-fips={fips} class={cls} style={{ fill }}
-        tabIndex={mini ? -1 : 0} role={mini ? undefined : 'button'} aria-label={mini ? undefined : describe(fips)} aria-pressed={mini ? undefined : fips === selected} />
+        tabindex={mini ? undefined : -1} role={mini ? undefined : 'button'} aria-label={mini ? undefined : describe(fips)} aria-pressed={mini ? undefined : fips === selected} />
     )
   }), [values, sc, selected, homeCounty, dimOutsideRegion, inRegion, idx, mini, hatch, def])
 
@@ -77,11 +103,40 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
   }
   const selLabel = !mini && selected ? LABELS[selected] : null
 
+  const onKey = (e: KeyboardEvent) => {
+    const here = PATHS.findIndex(([f]) => f === fipsOf(e))
+    const cur = here >= 0 ? here : active
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (cur < 0) return
+      e.preventDefault()
+      onSelect(PATHS[cur][0])
+      return
+    }
+    let next = -1
+    if (e.key.startsWith('Arrow')) {
+      if (cur < 0) {
+        const start = selected || homeCounty
+        next = Math.max(0, PATHS.findIndex(([f]) => f === start))
+      } else next = neighbor(cur, e.key)
+    } else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = PATHS.length - 1
+    if (next < 0) return
+    e.preventDefault()
+    setActive(next)
+    const f = PATHS[next][0]
+    setFocusFips(f)
+    svgRef.current?.querySelector<SVGPathElement>(`path[data-fips="${f}"]`)?.focus()
+  }
+
   return (
     <div>
       <div data-map class="relative w-full select-none" style={{ aspectRatio: MAP_ASPECT, touchAction: 'pan-y pinch-zoom' }}
         onPointerLeave={(e) => { if (e.pointerType === "mouse") hover.value = null }}>
-        <svg viewBox={map.viewBox} class="block w-full h-full" role="group" aria-label={label ?? `${def.label} by county`}>
+        <svg ref={svgRef} viewBox={map.viewBox} class="block w-full h-full" data-share-svg={mini ? undefined : ''}
+          role={mini ? 'group' : 'application'} tabIndex={mini ? undefined : 0}
+          aria-label={`${label ?? `${def.label} by county`}${mini ? '' : ' Use arrow keys to move between counties, Enter to select.'}`}
+          onKeyDown={mini ? undefined : onKey}
+          onFocusOut={mini ? undefined : (e) => { if (!svgRef.current?.contains(e.relatedTarget as Node | null)) setFocusFips('') }}>
           <defs>
             <pattern id={hatch} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill="#2a2a2c" />
@@ -90,13 +145,13 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
           </defs>
           <g
             onClick={(e) => { const f = fipsOf(e); if (f) onSelect(f) }}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { const f = fipsOf(e); if (f) { e.preventDefault(); onSelect(f) } } }}
             onPointerMove={mini ? undefined : (e) => { if (e.pointerType === 'mouse') showTip(e) }}
             onPointerDown={mini ? undefined : (e) => { if (e.pointerType !== 'mouse') showTip(e) }}>
             {paths}
           </g>
           {homeCounty && homeCounty !== selected && outline(homeCounty, 'home')}
           {selected && outline(selected, 'selected')}
+          {focusFips && outline(focusFips, 'focus')}
           {selLabel && (
             <text x={selLabel[0]} y={selLabel[1]} text-anchor="middle" dominant-baseline="middle" font-size={26} font-weight="700"
               fill="#fff" stroke="#000" stroke-width="5" paint-order="stroke" pointer-events="none">{NAMES[selected]}</text>

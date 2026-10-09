@@ -30,8 +30,8 @@ export function RankBlock({ value, def, state, region, regionName, season }:
     <Section first title={`${def.label} · ${season}`} note={def.units}>
       <div class="grid grid-cols-3 gap-2">
         <Stat label={def.label} value={formatMetric(value, def)} units={def.units} />
-        <Stat label="Rank statewide" value={state[0] ? ordinal(state[0]) : '–'} units={`of ${state[1]} counties`} />
-        <Stat label={`Rank in ${regionName}`} value={region[0] ? ordinal(region[0]) : '–'} units={`of ${region[1]} counties`} />
+        <Stat label="Rank statewide" value={state[0] > 0 ? ordinal(state[0]) : 'not ranked'} units={`of ${state[1]} counties`} />
+        <Stat label={`Rank in ${regionName}`} value={region[0] > 0 ? ordinal(region[0]) : 'not ranked'} units={`of ${region[1]} counties`} />
       </div>
     </Section>
   )

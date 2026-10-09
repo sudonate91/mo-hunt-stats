@@ -36,7 +36,7 @@ export default function TrendsView() {
       </div>
       <section class="bg-bg-2 border border-line rounded-xl p-3">
         <div class="min-h-[320px]">
-          {t && <LineChart x={t.x} series={t.series} units={t.units} title={t.title} height={240} format={FORMAT[effMode]} yMin={effMode === 'index' ? null : 0} />}
+          {t && <LineChart id="trends-main" x={t.x} series={t.series} units={t.units} title={t.title} height={240} format={FORMAT[effMode]} yMin={effMode === 'index' ? null : 0} />}
         </div>
         <p class="text-xs text-fg-3 min-h-[1rem] mt-1">{t?.note}</p>
       </section>

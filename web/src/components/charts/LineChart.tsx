@@ -54,7 +54,7 @@ export function LineChart({ x, series, units, title, height = 220, id, yMin = 0,
         {id && <ShareButton target={id} />}
       </div>
       {table
-        ? <DataTable columns={['Season', ...series.map((s) => s.label)]} rows={x.map((xv, i) => [xv, ...series.map((s) => s.values[i] ?? '')])} />
+        ? <DataTable columns={['Season', ...series.map((s) => s.label)]} rows={x.map((xv, i) => [xv, ...series.map((s) => (s.values[i] == null ? '–' : format(s.values[i] as number)))])} />
         : <div ref={box} style={{ minHeight: `${height}px` }} class="w-full" />}
       <Credit units={units} />
     </figure>

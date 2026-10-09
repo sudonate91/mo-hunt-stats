@@ -1,6 +1,6 @@
 # STATUS
 
-## Phase: 3–8 built (web app, views, derived metrics, PWA, CI) — final review pass
+## Phase: 3–8 built and reviewed — complete, ready to push
 
 ### Phases 3–8 done (user said "keep going until done", so no per-phase stops after phase 1)
 - `web/`: Vite + Preact + TS strict + Tailwind v4 + uPlot. Signals mirrored to URL params (`view, sp, y, yr, s, p, m, yo, c, r, co, metric, sel, cmp`).
@@ -17,6 +17,13 @@
 - CI: `.github/workflows/pipeline.yml` scrape → validate → build → bundle budget (`scripts/check-bundle.mjs`, baseline in
   `web/bundle-baseline.json`) → Lighthouse mobile ≥ 90 → Pages deploy. Weekly Mon Sep–Jan, monthly otherwise.
 - Budget: initial JS 18.8 KB gz (limit 150), CSS 6.3 KB, all lazy JS 120 KB, data ≈ 290 KB gz.
+
+### Review fixes applied (Sonnet review → 11 confirmed bugs, all fixed)
+- Attribute shares only over portions with attribute rows; competition ranking with zero/NaN unranked; turkey YoY and
+  5-yr comparisons spring-only when the latest year has no fall data; URL params validated and clamped; season year
+  clamped to the filter range; MAX_YEAR follows the data; SW serves precached index.html for every navigation;
+  icon paths respect the Pages base; negative bars; species compare uses one reduced filter on both sides; share
+  buttons on every chart and the map; roving tabindex on the map; Escape closes menus.
 
 ### Known gaps
 - `county.json` `bear_management_zone` / `cwd_zone` are null (zones don't follow county lines; needs a decision).

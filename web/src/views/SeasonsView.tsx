@@ -33,7 +33,7 @@ export default function SeasonsView() {
 
       <div class="grid gap-3 lg:grid-cols-2">
         <Panel class="lg:col-span-2 min-h-[300px]">
-          {s && <StackedBarChart groups={s.portionGroups} categories={s.portionCats} colors={s.portionColors}
+          {s && <StackedBarChart id="seasons-stack" groups={s.portionGroups} categories={s.portionCats} colors={s.portionColors}
             units="Animals checked, by portion (subtotals excluded)" title={`Harvest by portion · ${s.rangeLabel}`} height={220} />}
         </Panel>
 
@@ -43,7 +43,7 @@ export default function SeasonsView() {
             <YearSelect />
           </div>
           {s && s.yearBars.length > 0
-            ? <HBarChart bars={s.yearBars} units="Animals checked" title={`Portions ranked · ${yLabel}`} maxBars={12} />
+            ? <HBarChart id="seasons-year" bars={s.yearBars} units="Animals checked" title={`Portions ranked · ${yLabel}`} maxBars={12} />
             : <p class="text-sm text-fg-3">No harvest for this season under the current filters.</p>}
           <dl class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {s?.stats.map((st) => (
@@ -57,7 +57,7 @@ export default function SeasonsView() {
         </Panel>
 
         <Panel class="min-h-[300px]">
-          {s && <StackedBarChart groups={s.classGroups} categories={s.classCats}
+          {s && <StackedBarChart id="seasons-classes" groups={s.classGroups} categories={s.classCats}
             units="Animals checked, by sex / age class" title={`${f.species === 'deer' ? 'Bucks, button bucks, does' : 'Gobblers and hens'} · ${s.rangeLabel}`} height={220} />}
         </Panel>
       </div>

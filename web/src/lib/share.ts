@@ -2,7 +2,8 @@
  * Share a chart <figure> as a PNG (lazy-imported on click; no dependencies).
  *
  * The figure is rasterized at 2x onto an offscreen canvas with the dark background, its title (data-share-title),
- * units, legend, the chart itself (an SVG with role="img", or a uPlot canvas) and a credit line. Figures with
+ * units, legend, the chart itself (an SVG with role="img" or data-share-svg such as the choropleth, or a uPlot canvas)
+ * and a credit line. Figures with
  * data-share-text / data-share-value (fact cards) render as a text card instead. Phones get the native share sheet
  * (navigator.share with files); everything else downloads the file.
  */
@@ -78,11 +79,16 @@ function legendItems(fig: HTMLElement): LegendItem[] {
     const marker = row.querySelector<HTMLElement>('.u-marker')
     if (label && marker) out.push({ label, color: getComputedStyle(marker).borderTopColor })
   })
-  // hand-built legends: <ul><li><span style="background:…"/>Label</li></ul>
+  // hand-built legends: <ul><li><span style="background:…"/>Label</li></ul> (map legend keeps hidden placeholder slots)
   fig.querySelectorAll<HTMLElement>('ul > li').forEach((li) => {
+    if (li.getAttribute('aria-hidden') === 'true' || getComputedStyle(li).visibility === 'hidden') return
     const sw = li.querySelector<HTMLElement>('span')
     const label = li.textContent?.trim()
-    if (sw && label) out.push({ label, color: getComputedStyle(sw).backgroundColor })
+    if (!sw || !label) return
+    const st = getComputedStyle(sw)
+    // Patterned swatches (map "No data" hatch) have a gradient image and a transparent color.
+    const transparent = st.backgroundColor === 'transparent' || /rgba\(.*,\s*0\)$/.test(st.backgroundColor)
+    out.push({ label, color: transparent ? '#4a4a4e' : st.backgroundColor })
   })
   return out
 }
@@ -138,7 +144,7 @@ export async function figureToPng(id: string): Promise<ShareImage> {
       },
     }
   } else {
-    const svg = fig.querySelector<SVGSVGElement>('svg[role="img"]')
+    const svg = fig.querySelector<SVGSVGElement>('svg[role="img"], svg[data-share-svg]')
     const plot = fig.querySelector<HTMLElement>('.uplot .u-wrap')
     const d = svg ? await svgDrawable(svg) : plot ? canvasDrawable(plot) : null
     if (!d) throw new Error('Switch to the chart view to share an image')

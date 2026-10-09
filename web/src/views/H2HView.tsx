@@ -39,10 +39,10 @@ export default function H2HView() {
           <StatCards places={h.places} rows={h.rows} season={season} />
           <div class="grid gap-3 lg:grid-cols-2">
             <Panel class="min-h-[300px]">
-              <LineChart x={h.x} series={h.series} units="Animals checked" title={`${h.places[0].label} vs ${h.places[1].label} by season`} height={220} />
+              <LineChart id="h2h-trend" x={h.x} series={h.series} units="Animals checked" title={`${h.places[0].label} vs ${h.places[1].label} by season`} height={220} />
             </Panel>
             <Panel class="min-h-[300px]">
-              <StackedBarChart groups={h.mix} categories={h.mixCats} colors={h.mixColors} height={220}
+              <StackedBarChart id="h2h-mix" groups={h.mix} categories={h.mixCats} colors={h.mixColors} height={220}
                 units="% of the season's harvest, by portion" title={`Portion mix · ${season}`} />
             </Panel>
           </div>
