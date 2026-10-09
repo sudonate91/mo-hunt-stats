@@ -1,0 +1,827 @@
+[
+ {
+  "fips": "29001",
+  "name": "Adair",
+  "aliases": [
+   "adair"
+  ]
+ },
+ {
+  "fips": "29003",
+  "name": "Andrew",
+  "aliases": [
+   "andrew"
+  ]
+ },
+ {
+  "fips": "29005",
+  "name": "Atchison",
+  "aliases": [
+   "atchison"
+  ]
+ },
+ {
+  "fips": "29007",
+  "name": "Audrain",
+  "aliases": [
+   "audrain"
+  ]
+ },
+ {
+  "fips": "29009",
+  "name": "Barry",
+  "aliases": [
+   "barry"
+  ]
+ },
+ {
+  "fips": "29011",
+  "name": "Barton",
+  "aliases": [
+   "barton"
+  ]
+ },
+ {
+  "fips": "29013",
+  "name": "Bates",
+  "aliases": [
+   "bates"
+  ]
+ },
+ {
+  "fips": "29015",
+  "name": "Benton",
+  "aliases": [
+   "benton"
+  ]
+ },
+ {
+  "fips": "29017",
+  "name": "Bollinger",
+  "aliases": [
+   "bollinger"
+  ]
+ },
+ {
+  "fips": "29019",
+  "name": "Boone",
+  "aliases": [
+   "boone"
+  ]
+ },
+ {
+  "fips": "29021",
+  "name": "Buchanan",
+  "aliases": [
+   "buchanan"
+  ]
+ },
+ {
+  "fips": "29023",
+  "name": "Butler",
+  "aliases": [
+   "butler"
+  ]
+ },
+ {
+  "fips": "29025",
+  "name": "Caldwell",
+  "aliases": [
+   "caldwell"
+  ]
+ },
+ {
+  "fips": "29027",
+  "name": "Callaway",
+  "aliases": [
+   "callaway"
+  ]
+ },
+ {
+  "fips": "29029",
+  "name": "Camden",
+  "aliases": [
+   "camden"
+  ]
+ },
+ {
+  "fips": "29031",
+  "name": "Cape Girardeau",
+  "aliases": [
+   "cape girardeau"
+  ]
+ },
+ {
+  "fips": "29033",
+  "name": "Carroll",
+  "aliases": [
+   "carroll",
+   "carrol"
+  ]
+ },
+ {
+  "fips": "29035",
+  "name": "Carter",
+  "aliases": [
+   "carter"
+  ]
+ },
+ {
+  "fips": "29037",
+  "name": "Cass",
+  "aliases": [
+   "cass"
+  ]
+ },
+ {
+  "fips": "29039",
+  "name": "Cedar",
+  "aliases": [
+   "cedar"
+  ]
+ },
+ {
+  "fips": "29041",
+  "name": "Chariton",
+  "aliases": [
+   "chariton"
+  ]
+ },
+ {
+  "fips": "29043",
+  "name": "Christian",
+  "aliases": [
+   "christian"
+  ]
+ },
+ {
+  "fips": "29045",
+  "name": "Clark",
+  "aliases": [
+   "clark"
+  ]
+ },
+ {
+  "fips": "29047",
+  "name": "Clay",
+  "aliases": [
+   "clay"
+  ]
+ },
+ {
+  "fips": "29049",
+  "name": "Clinton",
+  "aliases": [
+   "clinton"
+  ]
+ },
+ {
+  "fips": "29051",
+  "name": "Cole",
+  "aliases": [
+   "cole"
+  ]
+ },
+ {
+  "fips": "29053",
+  "name": "Cooper",
+  "aliases": [
+   "cooper"
+  ]
+ },
+ {
+  "fips": "29055",
+  "name": "Crawford",
+  "aliases": [
+   "crawford"
+  ]
+ },
+ {
+  "fips": "29057",
+  "name": "Dade",
+  "aliases": [
+   "dade"
+  ]
+ },
+ {
+  "fips": "29059",
+  "name": "Dallas",
+  "aliases": [
+   "dallas"
+  ]
+ },
+ {
+  "fips": "29061",
+  "name": "Daviess",
+  "aliases": [
+   "daviess"
+  ]
+ },
+ {
+  "fips": "29063",
+  "name": "DeKalb",
+  "aliases": [
+   "dekalb",
+   "de kalb"
+  ]
+ },
+ {
+  "fips": "29065",
+  "name": "Dent",
+  "aliases": [
+   "dent"
+  ]
+ },
+ {
+  "fips": "29067",
+  "name": "Douglas",
+  "aliases": [
+   "douglas"
+  ]
+ },
+ {
+  "fips": "29069",
+  "name": "Dunklin",
+  "aliases": [
+   "dunklin"
+  ]
+ },
+ {
+  "fips": "29071",
+  "name": "Franklin",
+  "aliases": [
+   "franklin"
+  ]
+ },
+ {
+  "fips": "29073",
+  "name": "Gasconade",
+  "aliases": [
+   "gasconade"
+  ]
+ },
+ {
+  "fips": "29075",
+  "name": "Gentry",
+  "aliases": [
+   "gentry"
+  ]
+ },
+ {
+  "fips": "29077",
+  "name": "Greene",
+  "aliases": [
+   "greene"
+  ]
+ },
+ {
+  "fips": "29079",
+  "name": "Grundy",
+  "aliases": [
+   "grundy"
+  ]
+ },
+ {
+  "fips": "29081",
+  "name": "Harrison",
+  "aliases": [
+   "harrison"
+  ]
+ },
+ {
+  "fips": "29083",
+  "name": "Henry",
+  "aliases": [
+   "henry"
+  ]
+ },
+ {
+  "fips": "29085",
+  "name": "Hickory",
+  "aliases": [
+   "hickory"
+  ]
+ },
+ {
+  "fips": "29087",
+  "name": "Holt",
+  "aliases": [
+   "holt"
+  ]
+ },
+ {
+  "fips": "29089",
+  "name": "Howard",
+  "aliases": [
+   "howard"
+  ]
+ },
+ {
+  "fips": "29091",
+  "name": "Howell",
+  "aliases": [
+   "howell"
+  ]
+ },
+ {
+  "fips": "29093",
+  "name": "Iron",
+  "aliases": [
+   "iron"
+  ]
+ },
+ {
+  "fips": "29095",
+  "name": "Jackson",
+  "aliases": [
+   "jackson"
+  ]
+ },
+ {
+  "fips": "29097",
+  "name": "Jasper",
+  "aliases": [
+   "jasper"
+  ]
+ },
+ {
+  "fips": "29099",
+  "name": "Jefferson",
+  "aliases": [
+   "jefferson"
+  ]
+ },
+ {
+  "fips": "29101",
+  "name": "Johnson",
+  "aliases": [
+   "johnson"
+  ]
+ },
+ {
+  "fips": "29103",
+  "name": "Knox",
+  "aliases": [
+   "knox"
+  ]
+ },
+ {
+  "fips": "29105",
+  "name": "Laclede",
+  "aliases": [
+   "laclede"
+  ]
+ },
+ {
+  "fips": "29107",
+  "name": "Lafayette",
+  "aliases": [
+   "lafayette"
+  ]
+ },
+ {
+  "fips": "29109",
+  "name": "Lawrence",
+  "aliases": [
+   "lawrence"
+  ]
+ },
+ {
+  "fips": "29111",
+  "name": "Lewis",
+  "aliases": [
+   "lewis"
+  ]
+ },
+ {
+  "fips": "29113",
+  "name": "Lincoln",
+  "aliases": [
+   "lincoln"
+  ]
+ },
+ {
+  "fips": "29115",
+  "name": "Linn",
+  "aliases": [
+   "linn"
+  ]
+ },
+ {
+  "fips": "29117",
+  "name": "Livingston",
+  "aliases": [
+   "livingston"
+  ]
+ },
+ {
+  "fips": "29119",
+  "name": "McDonald",
+  "aliases": [
+   "mcdonald",
+   "mc donald"
+  ]
+ },
+ {
+  "fips": "29121",
+  "name": "Macon",
+  "aliases": [
+   "macon"
+  ]
+ },
+ {
+  "fips": "29123",
+  "name": "Madison",
+  "aliases": [
+   "madison"
+  ]
+ },
+ {
+  "fips": "29125",
+  "name": "Maries",
+  "aliases": [
+   "maries"
+  ]
+ },
+ {
+  "fips": "29127",
+  "name": "Marion",
+  "aliases": [
+   "marion"
+  ]
+ },
+ {
+  "fips": "29129",
+  "name": "Mercer",
+  "aliases": [
+   "mercer"
+  ]
+ },
+ {
+  "fips": "29131",
+  "name": "Miller",
+  "aliases": [
+   "miller"
+  ]
+ },
+ {
+  "fips": "29133",
+  "name": "Mississippi",
+  "aliases": [
+   "mississippi"
+  ]
+ },
+ {
+  "fips": "29135",
+  "name": "Moniteau",
+  "aliases": [
+   "moniteau"
+  ]
+ },
+ {
+  "fips": "29137",
+  "name": "Monroe",
+  "aliases": [
+   "monroe"
+  ]
+ },
+ {
+  "fips": "29139",
+  "name": "Montgomery",
+  "aliases": [
+   "montgomery"
+  ]
+ },
+ {
+  "fips": "29141",
+  "name": "Morgan",
+  "aliases": [
+   "morgan"
+  ]
+ },
+ {
+  "fips": "29143",
+  "name": "New Madrid",
+  "aliases": [
+   "new madrid"
+  ]
+ },
+ {
+  "fips": "29145",
+  "name": "Newton",
+  "aliases": [
+   "newton"
+  ]
+ },
+ {
+  "fips": "29147",
+  "name": "Nodaway",
+  "aliases": [
+   "nodaway"
+  ]
+ },
+ {
+  "fips": "29149",
+  "name": "Oregon",
+  "aliases": [
+   "oregon"
+  ]
+ },
+ {
+  "fips": "29151",
+  "name": "Osage",
+  "aliases": [
+   "osage"
+  ]
+ },
+ {
+  "fips": "29153",
+  "name": "Ozark",
+  "aliases": [
+   "ozark"
+  ]
+ },
+ {
+  "fips": "29155",
+  "name": "Pemiscot",
+  "aliases": [
+   "pemiscot"
+  ]
+ },
+ {
+  "fips": "29157",
+  "name": "Perry",
+  "aliases": [
+   "perry"
+  ]
+ },
+ {
+  "fips": "29159",
+  "name": "Pettis",
+  "aliases": [
+   "pettis"
+  ]
+ },
+ {
+  "fips": "29161",
+  "name": "Phelps",
+  "aliases": [
+   "phelps"
+  ]
+ },
+ {
+  "fips": "29163",
+  "name": "Pike",
+  "aliases": [
+   "pike"
+  ]
+ },
+ {
+  "fips": "29165",
+  "name": "Platte",
+  "aliases": [
+   "platte"
+  ]
+ },
+ {
+  "fips": "29167",
+  "name": "Polk",
+  "aliases": [
+   "polk"
+  ]
+ },
+ {
+  "fips": "29169",
+  "name": "Pulaski",
+  "aliases": [
+   "pulaski"
+  ]
+ },
+ {
+  "fips": "29171",
+  "name": "Putnam",
+  "aliases": [
+   "putnam"
+  ]
+ },
+ {
+  "fips": "29173",
+  "name": "Ralls",
+  "aliases": [
+   "ralls"
+  ]
+ },
+ {
+  "fips": "29175",
+  "name": "Randolph",
+  "aliases": [
+   "randolph"
+  ]
+ },
+ {
+  "fips": "29177",
+  "name": "Ray",
+  "aliases": [
+   "ray"
+  ]
+ },
+ {
+  "fips": "29179",
+  "name": "Reynolds",
+  "aliases": [
+   "reynolds"
+  ]
+ },
+ {
+  "fips": "29181",
+  "name": "Ripley",
+  "aliases": [
+   "ripley"
+  ]
+ },
+ {
+  "fips": "29183",
+  "name": "St. Charles",
+  "aliases": [
+   "st. charles",
+   "saint charles",
+   "st charles"
+  ]
+ },
+ {
+  "fips": "29185",
+  "name": "St. Clair",
+  "aliases": [
+   "st. clair",
+   "saint clair",
+   "st clair"
+  ]
+ },
+ {
+  "fips": "29186",
+  "name": "Ste. Genevieve",
+  "aliases": [
+   "ste. genevieve",
+   "sainte genevieve",
+   "ste genevieve",
+   "saint genevieve",
+   "st genevieve"
+  ]
+ },
+ {
+  "fips": "29187",
+  "name": "St. Francois",
+  "aliases": [
+   "st. francois",
+   "saint francois",
+   "st francois"
+  ]
+ },
+ {
+  "fips": "29189",
+  "name": "St. Louis",
+  "aliases": [
+   "st. louis",
+   "saint louis",
+   "st louis"
+  ]
+ },
+ {
+  "fips": "29195",
+  "name": "Saline",
+  "aliases": [
+   "saline"
+  ]
+ },
+ {
+  "fips": "29197",
+  "name": "Schuyler",
+  "aliases": [
+   "schuyler"
+  ]
+ },
+ {
+  "fips": "29199",
+  "name": "Scotland",
+  "aliases": [
+   "scotland"
+  ]
+ },
+ {
+  "fips": "29201",
+  "name": "Scott",
+  "aliases": [
+   "scott"
+  ]
+ },
+ {
+  "fips": "29203",
+  "name": "Shannon",
+  "aliases": [
+   "shannon"
+  ]
+ },
+ {
+  "fips": "29205",
+  "name": "Shelby",
+  "aliases": [
+   "shelby"
+  ]
+ },
+ {
+  "fips": "29207",
+  "name": "Stoddard",
+  "aliases": [
+   "stoddard"
+  ]
+ },
+ {
+  "fips": "29209",
+  "name": "Stone",
+  "aliases": [
+   "stone"
+  ]
+ },
+ {
+  "fips": "29211",
+  "name": "Sullivan",
+  "aliases": [
+   "sullivan"
+  ]
+ },
+ {
+  "fips": "29213",
+  "name": "Taney",
+  "aliases": [
+   "taney"
+  ]
+ },
+ {
+  "fips": "29215",
+  "name": "Texas",
+  "aliases": [
+   "texas"
+  ]
+ },
+ {
+  "fips": "29217",
+  "name": "Vernon",
+  "aliases": [
+   "vernon"
+  ]
+ },
+ {
+  "fips": "29219",
+  "name": "Warren",
+  "aliases": [
+   "warren"
+  ]
+ },
+ {
+  "fips": "29221",
+  "name": "Washington",
+  "aliases": [
+   "washington"
+  ]
+ },
+ {
+  "fips": "29223",
+  "name": "Wayne",
+  "aliases": [
+   "wayne"
+  ]
+ },
+ {
+  "fips": "29225",
+  "name": "Webster",
+  "aliases": [
+   "webster"
+  ]
+ },
+ {
+  "fips": "29227",
+  "name": "Worth",
+  "aliases": [
+   "worth"
+  ]
+ },
+ {
+  "fips": "29229",
+  "name": "Wright",
+  "aliases": [
+   "wright"
+  ]
+ },
+ {
+  "fips": "29510",
+  "name": "St. Louis City",
+  "aliases": [
+   "st. louis city",
+   "saint louis city",
+   "st louis city",
+   "city of st. louis",
+   "st. louis (city)",
+   "saint louis city (city)"
+  ]
+ }
+]
