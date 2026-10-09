@@ -23,7 +23,7 @@ if ('serviceWorker' in navigator) {
 registerSW({
   immediate: true,
   onRegisteredSW: (_url, reg) => { if (reg) setInterval(() => reg.update().catch(() => undefined), 30 * 60 * 1000) },
-  onNeedReload: () => { needReload.value = true },
+  onNeedRefresh: () => { needReload.value = true },
   onOfflineReady: () => {
     offlineReady.value = true
     setTimeout(() => (offlineReady.value = false), 4000)
