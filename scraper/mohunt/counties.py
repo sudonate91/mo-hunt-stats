@@ -29,7 +29,10 @@ def _lookup() -> dict[str, str]:
     table: dict[str, str] = {}
     for row in rows:
         for alias in [row["name"], *row["aliases"]]:
-            table[_norm(alias)] = row["fips"]
+            key = _norm(alias)
+            if table.get(key, row["fips"]) != row["fips"]:
+                raise RuntimeError(f"county alias collision: {alias!r} maps to both {table[key]} and {row['fips']}")
+            table[key] = row["fips"]
     # spellings seen on MDC pages that the base alias list may not carry
     extra = {
         "carrol": "29033",

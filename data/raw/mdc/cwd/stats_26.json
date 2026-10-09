@@ -1,0 +1,1 @@
+{"displayFieldName":"","fieldAliases":{"PERMITYEAR":"PERMITYEAR","n":"n"},"fields":[{"name":"PERMITYEAR","type":"esriFieldTypeString","alias":"PERMITYEAR","length":4},{"name":"n","type":"esriFieldTypeInteger","alias":"n"}],"features":[{"attributes":{"PERMITYEAR":"2026","n":219}}]}

@@ -56,7 +56,7 @@ def test_county_rows_sum_to_printed_total(year, index):
 
 
 def test_known_defects_cover_errata_derivations():
-    assert {k for k, e in ERRATA.items() if e.kind == "derive_from_all_firearms"} <= set(KNOWN_DEFECTS)
+    assert {(y, p) for (sp, y, p), e in ERRATA.items() if sp == "deer" and e.kind == "derive_from_all_firearms"} <= set(KNOWN_DEFECTS)
 
 
 @pytest.mark.parametrize("year", SEASONS)
@@ -161,7 +161,7 @@ def test_spot_values(checked):
 @pytest.mark.parametrize("year", SEASONS)
 def test_page_to_rows_and_json(year, pages, checked):
     page, chosen = pages[year], checked[year][0]
-    rows = page_to_rows(page, chosen)
+    rows, _attrs = page_to_rows("deer", page, chosen)
     assert len(rows) == 3 * sum(len(t.rows) for t in chosen.values())
     keys = set(SCHEMA.names)
     assert len(keys) == 14

@@ -1,6 +1,33 @@
 # STATUS
 
-## Phase: 1 (deer scraper) — built, awaiting review
+## Phase: 2 (turkey, county dimension, GeoJSON, CWD) — built; moving to phase 3 per user ("keep going until done")
+
+### Phase 2 done
+- `scraper/mohunt/turkey.py`: 12 pages (2015–2026; 2026 is spring only). Portions `spring_youth`, `spring`, `fall_firearms`,
+  `fall_archery`, plus 2015-only subtotals `spring_opening_day`, `spring_first_week`. Public Land / Crossbow columns
+  (2018 archery; all tables 2023+) → `data/turkey_attributes.*`.
+- `scraper/mohunt/tables.py`: species-agnostic county-table parser shared by deer and turkey.
+- `scraper/mohunt/county_dim.py` → `data/county.json` (fips, name, mdc_region, land_area_sq_mi, centroid) and
+  `data/counties.geojson` (Census cb_2023 500k, Douglas-Peucker 0.002°, 4 dp, 93 KB). Region from MDC ArcGIS
+  Boundaries/MDC_Administrative_Boundaries/MapServer/5 by Census interior point, checked against MDC's Num_Cnty per region.
+  Note: MDC places Crawford and Washington in the St. Louis region. `bear_management_zone` / `cwd_zone` are null (TODO).
+- `scraper/mohunt/cwd.py` → `data/cwd.json`: county × year 2016–2026 (2026 in progress) from
+  CWD_Fall_Reporting_Dashboard layers 28/29 with sex/age splits; cross-checked against per-sample counts in layers 26/27.
+- Output budget: all JSON ≈ 290 KB gzipped (deer 155, turkey 76, cwd 23, geojson 24).
+
+### Turkey page defects handled (pinned in `validate.ERRATA` / `turkey.COLUMN_SWAPS`)
+- **2021 Spring**: county rows print Bearded Hen and Juvenile Gobbler in the opposite order from the header and Total row. Swapped back.
+- **2021 Youth Spring, Benton**: Bearded Hen cell prints 1 but row total and column total both imply 0. Set to 0.
+- **2021 Fall Firearms / Archery**: the Adult Hen column is labelled "Bearded Hen"; read as `adult_hen`.
+- **2020 Fall Firearms**: the Total row sits in the Top 5 table; taken from there.
+- **2022 Spring**: stray `adult_hen` (2 birds) and age-unknown `gobbler` (1 bird) columns kept as classes.
+- **2015**: Total rows labelled "Grand Totals:"; spring has opening-day and first-week subtotal tables.
+
+### Bug fixed
+- `counties.json` alias `st. louis (city)` normalized to `st louis` and overrode St. Louis County; found by the CWD builder.
+  Removed; `counties._lookup` now raises on alias collisions.
+
+## Phase 1 (deer scraper) — done
 
 ### Done
 - `scraper/mohunt/`: polite fetcher with raw cache (`data/raw/deer/*.html`), deer page parser, county→FIPS
@@ -31,10 +58,10 @@
 | 2023–2025 | preceding `<h3>`/`<h2>` | last | commas |
 
 ### Next
-- Phase 2: turkey scraper, county dimension (FIPS, sq mi, MDC region), county GeoJSON, CWD pull from ArcGIS.
+- Phase 3: Vite + Preact + TS app in web/ with Tailwind; filter bar in a bottom sheet synced to URL params.
 
 ### Model escalations
 - None. Main session is Fable (the session the user started); it did the scraper build directly instead of spawning an
   Opus builder, since the parser needed iterative inspection of 11 page layouts. Haiku built the first FIPS table but got
   codes wrong (McDonald, St. Louis, missing Douglas); replaced by a deterministic build from the Census code file.
-  Sonnet wrote the pytest suite.
+  Sonnet wrote the pytest suites. Opus built county_dim.py and cwd.py (pipeline code, per the table).

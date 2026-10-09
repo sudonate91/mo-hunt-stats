@@ -14,38 +14,54 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from .deer import CLASS_COLUMNS, CountyRow, DeerPage, HarvestTable, ParseError, classify
+from .deer import CountyRow, DeerPage, HarvestTable, ParseError, classify
 
 
 @dataclass(frozen=True)
 class Erratum:
-    kind: str  # "recap_misaligned" | "derive_from_all_firearms"
+    kind: str  # "recap_misaligned" | "derive_from_all_firearms" | "cell_fix"
     note: str
     counties: frozenset[str] = frozenset()  # recap_misaligned: FIPS whose values differ
+    cell: tuple[str, str, int, int] = ()  # cell_fix: (fips, class, printed value, corrected value)
 
 
-ERRATA: dict[tuple[int, str], Erratum] = {
-    (2019, "late_antlerless"): Erratum(
+ERRATA: dict[tuple[str, int, str], Erratum] = {
+    ("deer", 2019, "late_antlerless"): Erratum(
         "derive_from_all_firearms",
         "MDC's 2019 'Antlerless Firearms / All Counties' table lists values against the wrong county "
         "names (e.g. Callaway's 397 appears on the Caldwell row) and its rows sum to 10,995 vs the printed "
         "10,597. Rebuilt per county as All Firearms minus early youth, November, late youth and "
         "alternative methods; the result matches MDC's printed totals and Top 5 exactly.",
     ),
-    (2025, "managed_hunts"): Erratum(
+    ("deer", 2025, "managed_hunts"): Erratum(
         "recap_misaligned",
         "The 114-row Managed Hunts recap puts Callaway/Camden/Cape Girardeau values on the Caldwell/Callaway/"
         "Camden rows. The 34-county primary table is used.",
         frozenset({"29025", "29027", "29029", "29031"}),
     ),
+    ("turkey", 2021, "spring_youth"): Erratum(
+        "cell_fix",
+        "Benton's Bearded Hen cell prints 1, but the row total (28) and the column total (48) both say 0.",
+        cell=("29015", "bearded_hen", 1, 0),
+    ),
+    # ("turkey", 2021, "spring"): county rows print Bearded Hen / Juvenile Gobbler in the opposite order from the
+    # header and Total row; turkey.COLUMN_SWAPS swaps them back. Self-pinning: if MDC fixes the page the swap
+    # breaks the column sums and the build fails.
 }
 
 FIREARM_PARTS_FOR_DERIVATION = ("early_youth", "november", "late_youth", "alternative_methods")
 
 
 def column_sums(t: HarvestTable) -> dict[str, int]:
-    sums = {c: sum(r.counts[c] for r in t.rows) for c in CLASS_COLUMNS}
-    sums["total"] = sum(r.total for r in t.rows)
+    """Sum county rows for every column MDC printed a total for (classes, total, extras)."""
+    sums: dict[str, int] = {}
+    for col in t.printed_total:
+        if col == "total":
+            sums[col] = sum(r.total for r in t.rows)
+        elif col in t.classes or any(col in r.counts for r in t.rows):
+            sums[col] = sum(r.counts.get(col, 0) for r in t.rows)
+        else:
+            sums[col] = sum(r.extras.get(col, 0) for r in t.rows)
     return sums
 
 
@@ -85,11 +101,26 @@ def derive_from_all_firearms(chosen: dict[str, HarvestTable], season_year: int, 
     return replace(bad, rows=rows, derived=True, title=f"{bad.title} (derived: All Firearms minus other firearm portions)")
 
 
-def select_tables(page: DeerPage) -> tuple[dict[str, HarvestTable], list[str], list[str]]:
+def apply_cell_fixes(species: str, page, warnings: list[str], errors: list[str]) -> None:
+    y = page.season_year
+    for (sp, yy, portion), e in ERRATA.items():
+        if e.kind != "cell_fix" or sp != species or yy != y:
+            continue
+        fips, cls, printed, fixed = e.cell
+        hits = [r for t in page.tables if t.portion == portion for r in t.rows if r.county_fips == fips]
+        if not hits or hits[0].counts.get(cls) != printed:
+            errors.append(f"{species} {y} {portion}: ERRATA cell_fix expects {fips} {cls}={printed}; page differs, remove the entry")
+            continue
+        hits[0].counts[cls] = fixed
+        warnings.append(f"{species} {y} {portion}: {e.note} Set to {fixed}.")
+
+
+def select_tables(page, species: str = "deer") -> tuple[dict[str, HarvestTable], list[str], list[str]]:
     """Pick one validated table per portion. Returns (chosen, errors, warnings)."""
     errors: list[str] = []
     warnings: list[str] = []
     y = page.season_year
+    apply_cell_fixes(species, page, warnings, errors)
     by_portion: dict[str, list[HarvestTable]] = {}
     for t in page.tables:
         by_portion.setdefault(t.portion, []).append(t)
@@ -99,7 +130,7 @@ def select_tables(page: DeerPage) -> tuple[dict[str, HarvestTable], list[str], l
     for portion, cands in by_portion.items():
         results = [(t, check_table(t, y)) for t in cands]
         valid = [t for t, e in results if not e]
-        erratum = ERRATA.get((y, portion))
+        erratum = ERRATA.get((species, y, portion))
         if erratum and erratum.kind == "derive_from_all_firearms":
             if valid:
                 errors.append(f"{y} {portion}: ERRATA says the table is broken but it now validates; remove the entry")
@@ -135,7 +166,7 @@ def select_tables(page: DeerPage) -> tuple[dict[str, HarvestTable], list[str], l
             errors.append(f"{y} {portion}: derived sums {column_sums(t)} != printed {bad.printed_total}")
             continue
         chosen[portion] = t
-        warnings.append(f"{y} {portion}: {ERRATA[(y, portion)].note}")
+        warnings.append(f"{y} {portion}: {ERRATA[(species, y, portion)].note}")
     return chosen, errors, warnings
 
 
@@ -146,9 +177,10 @@ def _summary_slug(label: str) -> str:
         return ""
 
 
-def check_page(page: DeerPage) -> tuple[dict[str, HarvestTable], list[str], list[str]]:
+def check_page(page, species: str = "deer") -> tuple[dict[str, HarvestTable], list[str], list[str]]:
     """Return (chosen tables by portion, errors, warnings). Errors fail the build."""
-    chosen, errors, warnings = select_tables(page)
+    chosen, errors, warnings = select_tables(page, species)
+    warnings.extend(getattr(page, "warnings", []))
 
     gt = chosen.get("grand_total")
     if gt is not None:
@@ -157,7 +189,7 @@ def check_page(page: DeerPage) -> tuple[dict[str, HarvestTable], list[str], list
             errors.append(f"{page.season_year}: portions sum to {s}, Grand Totals table prints {gt.printed_total['total']}")
 
     # Season Summary cross-check is advisory: MDC's summary box sometimes differs from the tables.
-    for row in page.summary:
+    for row in getattr(page, "summary", []):
         t = chosen.get(_summary_slug(row.label))
         if t is not None and t.printed_total["total"] != row.counts["total"]:
             warnings.append(

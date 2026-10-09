@@ -1,7 +1,8 @@
-"""CLI: scrape deer pages -> data/harvest.parquet + data/harvest.json (+ validation report).
+"""CLI: scrape MDC pages -> data/harvest.parquet, data/harvest_<species>.json, data/turkey_attributes.*
 
     python -m mohunt.build            # uses cached HTML in data/raw/ when present
     python -m mohunt.build --refresh  # re-fetch every page (polite: 2 s between requests)
+    python -m mohunt.build --species deer --seasons 2025
 """
 from __future__ import annotations
 
@@ -12,12 +13,13 @@ import sys
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from .deer import CLASS_COLUMNS, DeerPage, HarvestTable, parse_deer_page, season_url
+from . import deer, turkey
 from .fetch import RAW_DIR, REPO_ROOT, fetch
+from .tables import HarvestTable
 from .validate import check_page
 
 DATA_DIR = REPO_ROOT / "data"
-DEER_SEASONS = range(2015, 2026)
+SEASONS = {"deer": list(range(2015, 2026)), "turkey": list(range(2015, 2027))}
 
 SCHEMA = pa.schema([
     ("state", pa.string()),
@@ -35,64 +37,95 @@ SCHEMA = pa.schema([
     ("count", pa.int32()),
     ("source_url", pa.string()),
 ])
-
-
-def load_deer_page(season_year: int, *, refresh: bool = False) -> DeerPage:
-    url = season_url(season_year)
-    html = fetch(url, RAW_DIR / "deer" / f"{season_year}-{season_year + 1}.html", refresh=refresh)
-    return parse_deer_page(html, season_year, url)
-
-
-def page_to_rows(page: DeerPage, chosen: dict[str, HarvestTable]) -> list[dict]:
-    rows = []
-    for t in chosen.values():
-        for r in t.rows:
-            for cls in CLASS_COLUMNS:
-                rows.append({
-                    "state": "MO", "species": "deer", "season_year": page.season_year, "season": "fall",
-                    "portion": t.portion, "portion_label": t.title, "method": t.method, "youth": t.youth,
-                    "is_subtotal": t.is_subtotal, "derived": t.derived, "county_fips": r.county_fips, "class": cls,
-                    "count": r.counts[cls], "source_url": page.source_url,
-                })
-    return rows
-
-
+ATTR_SCHEMA = pa.schema([
+    ("state", pa.string()),
+    ("species", pa.string()),
+    ("season_year", pa.int16()),
+    ("portion", pa.string()),
+    ("county_fips", pa.string()),
+    ("public_land", pa.int32()),
+    ("crossbow", pa.int32()),
+])
 JSON_COLUMNS = ["species", "season_year", "season", "portion", "method", "youth", "is_subtotal", "derived",
                 "county_fips", "class", "count"]
+ATTR_COLUMNS = ["species", "season_year", "portion", "county_fips", "public_land", "crossbow"]
 
 
-def compact_json(rows: list[dict]) -> dict:
-    """Column-ordered row arrays; the per-(species, year, portion) labels and URLs live in a lookup."""
-    labels: dict[str, dict] = {}
-    for r in rows:
-        key = f"{r['species']}:{r['season_year']}:{r['portion']}"
-        labels.setdefault(key, {"portion_label": r["portion_label"], "source_url": r["source_url"]})
-    return {
-        "state": "MO",
-        "columns": JSON_COLUMNS,
-        "rows": [[r[c] for c in JSON_COLUMNS] for r in rows],
-        "labels": labels,
-    }
+def load_page(species: str, season_year: int, *, refresh: bool = False):
+    if species == "deer":
+        url = deer.season_url(season_year)
+        html = fetch(url, RAW_DIR / "deer" / f"{season_year}-{season_year + 1}.html", refresh=refresh)
+        return deer.parse_deer_page(html, season_year, url)
+    if species == "turkey":
+        url = turkey.season_url(season_year)
+        html = fetch(url, RAW_DIR / "turkey" / f"{season_year}.html", refresh=refresh)
+        return turkey.parse_turkey_page(html, season_year, url)
+    raise ValueError(species)
+
+
+def load_deer_page(season_year: int, *, refresh: bool = False):
+    return load_page("deer", season_year, refresh=refresh)
+
+
+def page_to_rows(species: str, page, chosen: dict[str, HarvestTable]) -> tuple[list[dict], list[dict]]:
+    rows, attrs = [], []
+    for t in chosen.values():
+        season = "fall" if species == "deer" else t.portion.split("_")[0]
+        for r in t.rows:
+            for cls, n in r.counts.items():
+                rows.append({
+                    "state": "MO", "species": species, "season_year": page.season_year, "season": season,
+                    "portion": t.portion, "portion_label": t.title, "method": t.method, "youth": t.youth,
+                    "is_subtotal": t.is_subtotal, "derived": t.derived, "county_fips": r.county_fips,
+                    "class": cls, "count": n, "source_url": page.source_url,
+                })
+            if r.extras:
+                attrs.append({
+                    "state": "MO", "species": species, "season_year": page.season_year, "portion": t.portion,
+                    "county_fips": r.county_fips, "public_land": r.extras.get("public_land", 0),
+                    "crossbow": r.extras.get("crossbow", 0),
+                })
+    return rows, attrs
+
+
+def compact_json(rows: list[dict], columns: list[str] = JSON_COLUMNS, *, labels: bool = True) -> dict:
+    """Column-ordered row arrays; per-(species, year, portion) labels and URLs live in a lookup."""
+    out: dict = {"state": "MO", "columns": columns, "rows": [[r[c] for c in columns] for r in rows]}
+    if labels:
+        lab: dict[str, dict] = {}
+        for r in rows:
+            lab.setdefault(f"{r['species']}:{r['season_year']}:{r['portion']}",
+                           {"portion_label": r["portion_label"], "source_url": r["source_url"]})
+        out["labels"] = lab
+    return out
+
+
+def dump_json(path, obj) -> None:
+    path.write_text(json.dumps(obj, separators=(",", ":")), encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh", action="store_true", help="re-fetch pages even if cached")
-    ap.add_argument("--seasons", type=int, nargs="*", default=list(DEER_SEASONS))
+    ap.add_argument("--species", nargs="*", default=list(SEASONS))
+    ap.add_argument("--seasons", type=int, nargs="*")
     args = ap.parse_args(argv)
 
     all_rows: list[dict] = []
+    all_attrs: list[dict] = []
     errors: list[str] = []
     warnings: list[str] = []
-    for y in args.seasons:
-        page = load_deer_page(y, refresh=args.refresh)
-        chosen, e, w = check_page(page)
-        errors += e
-        warnings += w
-        all_rows += page_to_rows(page, chosen)
-        portions = sorted(chosen)
-        print(f"{y}-{y + 1}: {len(page.tables)} tables, {len(page.skipped)} skipped, "
-              f"{len(e)} errors, {len(w)} warnings; portions={portions}")
+    for species in args.species:
+        for y in args.seasons or SEASONS[species]:
+            page = load_page(species, y, refresh=args.refresh)
+            chosen, e, w = check_page(page, species)
+            errors += e
+            warnings += w
+            rows, attrs = page_to_rows(species, page, chosen)
+            all_rows += rows
+            all_attrs += attrs
+            print(f"{species} {y}: {len(page.tables)} tables, {len(page.skipped)} skipped, "
+                  f"{len(e)} errors, {len(w)} warnings; portions={sorted(chosen)}")
     for w in warnings:
         print("WARN", w)
     if errors:
@@ -102,10 +135,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     DATA_DIR.mkdir(exist_ok=True)
-    table = pa.Table.from_pylist(all_rows, schema=SCHEMA)
-    pq.write_table(table, DATA_DIR / "harvest.parquet", compression="zstd")
-    (DATA_DIR / "harvest.json").write_text(json.dumps(compact_json(all_rows), separators=(",", ":")), encoding="utf-8")
-    print(f"wrote {len(all_rows)} rows -> data/harvest.parquet, data/harvest.json")
+    pq.write_table(pa.Table.from_pylist(all_rows, schema=SCHEMA), DATA_DIR / "harvest.parquet", compression="zstd")
+    for species in args.species:
+        dump_json(DATA_DIR / f"harvest_{species}.json",
+                  compact_json([r for r in all_rows if r["species"] == species]))
+    if all_attrs:
+        pq.write_table(pa.Table.from_pylist(all_attrs, schema=ATTR_SCHEMA), DATA_DIR / "turkey_attributes.parquet",
+                       compression="zstd")
+        dump_json(DATA_DIR / "turkey_attributes.json", compact_json(all_attrs, ATTR_COLUMNS, labels=False))
+    print(f"wrote {len(all_rows)} harvest rows, {len(all_attrs)} attribute rows -> data/")
     return 0
 
 
