@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 
-USER_AGENT = "mo-hunt-stats scraper (+https://github.com/natemreinhardt/mo-hunt-stats)"
+USER_AGENT = "mo-hunt-stats scraper (+https://github.com/sudonate91/mo-hunt-stats)"
 SLEEP_SECONDS = 2.0
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = REPO_ROOT / "data" / "raw"
