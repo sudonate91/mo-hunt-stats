@@ -92,6 +92,8 @@ jobs:
     name: Build web + budgets
     needs: scrape
     runs-on: ubuntu-latest
+    env:
+      VITE_BASE: /${{ github.event.repository.name }}/
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -109,8 +111,6 @@ jobs:
         working-directory: web
       - name: Build
         working-directory: web
-        env:
-          VITE_BASE: /${{ github.event.repository.name }}/
         run: npm run build
       - name: Bundle budget (fails on > 150 KB gz initial JS or > 5% regression)
         working-directory: web
