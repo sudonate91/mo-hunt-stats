@@ -1,9 +1,9 @@
 /** Leaderboard computation: one pass per (filter, metric, year). */
 import { useMemo } from 'preact/hooks'
-import { countyMetric, countySeries, rankMetric, type MetricDef } from '../../data/metrics'
+import { countyMetric, countySeries, metricDef, rankMetric, type MetricDef } from '../../data/metrics'
 import { filterKey } from '../../data/query'
 import { attrs, counties, ds, regionOf } from '../../state/data'
-import { applicableMetric, filter, metric, year } from '../../state/filters'
+import { applicableMetric, applicableMetric2, filter, metric, metric2, year } from '../../state/filters'
 
 export interface BoardRow {
   idx: number
@@ -11,19 +11,21 @@ export interface BoardRow {
   name: string
   region: string
   value: number
+  value2: number // "Compare with" metric (NaN when off or undefined)
   rank: number
   delta: number | null // + = moved up
   spark: number[]
   share: number // share of statewide count (count metric only)
 }
 
-export interface Board { rows: BoardRow[]; def: MetricDef; sparkYears: number[]; hasPrev: boolean }
+export interface Board { rows: BoardRow[]; def: MetricDef; def2: MetricDef | null; sparkYears: number[]; hasPrev: boolean }
 
 const SPARK_N = 6
 
 export function useBoard(): Board | null {
   const d = ds.value, cs = counties.value, f = filter.value, y = year.value, m = applicableMetric(metric.value, filter.value.species), a = attrs.value
   const ro = regionOf.value
+  const m2raw = applicableMetric2(metric2.value, f.species), m2 = m2raw === m ? '' : m2raw
   const fk = filterKey(f)
   return useMemo(() => {
     if (!d || !cs) return null
@@ -31,6 +33,7 @@ export function useBoard(): Board | null {
     const sparkYears = yi < 0 ? [] : d.years.slice(Math.max(0, yi - SPARK_N + 1), yi + 1)
     const res = countyMetric(d, cs, f, ro, m, y, a)
     const def = res.def
+    const v2 = m2 && yi >= 0 ? countyMetric(d, cs, f, ro, m2, y, a).values : null
     const cur = yi < 0 ? new Float64Array(d.dict.county.length).fill(NaN) : res.values
     const hasPrev = yi > 0 && d.years[yi - 1] === y - 1
     const prev = hasPrev ? countyMetric(d, cs, f, ro, m, y - 1, a).values : null
@@ -50,13 +53,13 @@ export function useBoard(): Board | null {
       const c = cs[i]
       const pr = prevRank?.[i] ?? 0
       rows.push({
-        idx: i, fips: c.fips, name: c.name, region: c.mdc_region, value: cur[i], rank: rank[i],
+        idx: i, fips: c.fips, name: c.name, region: c.mdc_region, value: cur[i], value2: v2 ? v2[i] : NaN, rank: rank[i],
         delta: pr > 0 && rank[i] > 0 ? pr - rank[i] : null,
         spark: yi < 0 ? [] : Array.from(series[i].slice(s0, yi + 1)),
         share: stateTotal > 0 ? cur[i] / stateTotal : NaN,
       })
     }
-    rows.sort((p, q) => p.rank - q.rank)
-    return { rows, def, sparkYears, hasPrev }
-  }, [d, cs, fk, y, m, a, ro])
+    rows.sort((p, q) => (p.rank || 1e9) - (q.rank || 1e9)) // unranked last
+    return { rows, def, def2: m2 ? metricDef(m2) : null, sparkYears, hasPrev }
+  }, [d, cs, fk, y, m, m2, a, ro])
 }

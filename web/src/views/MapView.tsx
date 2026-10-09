@@ -10,12 +10,15 @@ import { applicableMetric, clampYear, metricsFor, yearsInRange } from '../compon
 import { OverlayChips, OverlayLegend, useActiveOverlays } from '../components/map/Overlays'
 import { SmallMultiples } from '../components/map/SmallMultiples'
 import { StatsStrip, type StripData } from '../components/map/StatsStrip'
+import { makeBubbleScale } from '../components/map/Bubbles'
+import { Scatter } from '../components/map/Scatter'
 import { YearScrubber } from '../components/map/YearScrubber'
+import { useEffortYear } from '../lib/yearNudge'
 import { countyMetric, metricDef } from '../data/metrics'
 import { maskYear, sumByCounty, sumByCountyYear, sumByYear } from '../data/query'
 import type { County, Dataset } from '../data/types'
-import { attrs, counties, countyByFips, currentMask, ds, regionOf } from '../state/data'
-import { filter, homeCounty, metric, selected, year, type Metric } from '../state/filters'
+import { attrs, counties, countyByFips, currentMask, ds, regionOf, regions } from '../state/data'
+import { applicableMetric2, filter, homeCounty, metric, metric2, selected, year, type Metric } from '../state/filters'
 
 const select = (fips: string) => { selected.value = selected.value === fips ? '' : fips }
 const setYear = (y: number) => { year.value = y }
@@ -34,6 +37,10 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
   useEffect(() => { if (year.value !== y) year.value = y }, [y])
   const mId = applicableMetric(metric.value, sp)
   const def = metricDef(mId)
+  const m2 = applicableMetric2(metric2.value, sp)
+  const m2Id = m2 === mId ? '' : m2
+  const def2 = m2Id ? metricDef(m2Id) : null
+  const nudge = useEffortYear([mId, m2Id], years)
   const [multiples, setMultiples] = useState(false)
   const [cardOpen, setCardOpen] = useState(true)
   const season = seasonLabel(sp, y)
@@ -43,6 +50,10 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
   const res = useMemo(() => countyMetric(d, cs, f, rOf, mId, y, at), [d, cs, f, rOf, mId, y, at])
   const multi = useMemo(() => (multiples ? years.map((yy) => countyMetric(d, cs, f, rOf, mId, yy, at).values) : null),
     [multiples, years, d, cs, f, rOf, mId, at])
+  const res2 = useMemo(() => (m2Id ? countyMetric(d, cs, f, rOf, m2Id, y, at).values : null), [d, cs, f, rOf, m2Id, y, at])
+  const bubbles = useMemo(() => (res2 && def2 ? { values: res2, def: def2, scale: makeBubbleScale([res2]) } : null), [res2, def2])
+  const multi2 = useMemo(() => (multiples && m2Id ? years.map((yy) => countyMetric(d, cs, f, rOf, m2Id, yy, at).values) : null),
+    [multiples, years, d, cs, f, rOf, m2Id, at])
 
   const [strip, topFips] = useMemo((): [StripData, string] => {
     const counts = sumByCounty(d, maskYear(d, m, y))
@@ -117,6 +128,14 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
               {metricsFor(sp).map((md) => <option key={md.id} value={md.id}>{md.label}</option>)}
             </select>
           </label>
+          <label class="flex-1 min-w-0">
+            <span class="sr-only">Compare with</span>
+            <select class={`w-full rounded-lg bg-bg-3 border px-2 text-sm ${m2Id ? 'border-[#4cc9f0] text-fg' : 'border-line text-fg-3'}`} value={m2Id}
+              onChange={(e) => { metric2.value = (e.currentTarget as HTMLSelectElement).value as Metric | '' }}>
+              <option value="">Compare with…</option>
+              {metricsFor(sp).filter((md) => md.id !== mId).map((md) => <option key={md.id} value={md.id}>vs {md.label}</option>)}
+            </select>
+          </label>
           {!multi && <ShareButton target="map-choropleth" label="Share map" />}
           <button type="button" aria-pressed={multiples} onClick={() => setMultiples(!multiples)}
             class={`tap rounded-lg px-3 text-sm border inline-flex items-center gap-1.5 ${multiples ? 'bg-blaze text-black border-blaze font-semibold' : 'border-line text-fg-2 hover:border-fg-3'}`}>
@@ -124,19 +143,26 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
           </button>
         </div>
         <OverlayChips />
+        {nudge && <p class="text-xs text-fg-3 mb-1" role="status">{nudge}</p>}
         <StatsStrip s={strip} def={def} onTop={() => topFips && (selected.value = topFips)} />
         <YearScrubber years={years} value={y} onChange={setYear} species={sp} />
         {multi ? (
           <SmallMultiples years={years} values={multi} def={def} species={sp} current={y} onYear={setYear}
-            onSelect={select} selected={sel} homeCounty={home} region={f.region} overlays={ov} />
+            onSelect={select} selected={sel} homeCounty={home} region={f.region} overlays={ov} values2={multi2} def2={def2} />
         ) : (
           <div onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => (start.current = null)} class="max-w-[760px] mx-auto">
             <h2 class="sr-only">{def.label} by county, {season}</h2>
-            <figure id="map-choropleth" class="m-0" data-share-title={`${def.label} by county · ${scope} · ${season}`}>
+            <figure id="map-choropleth" class="m-0" data-share-title={`${def.label}${def2 ? ` vs ${def2.label}` : ''} by county · ${scope} · ${season}`}>
               <Choropleth values={res.values} def={def} onSelect={select} selected={sel} homeCounty={home} dimOutsideRegion={f.region}
-                label={`${def.label} by county, ${season}. ${def.units}.`} overlays={ov} />
+                label={`${def.label} by county, ${season}. ${def.units}.${def2 ? ` Bubbles: ${def2.label}.` : ''}`} overlays={ov} bubbles={bubbles} />
               <OverlayLegend />
             </figure>
+          </div>
+        )}
+        {res2 && def2 && (
+          <div class="max-w-[760px] mx-auto">
+            <Scatter x={res2} y={res.values} defX={def2} defY={def} counties={cs} regions={regions.value} selected={sel} home={home}
+              onSelect={(fips) => (selected.value = fips)} title={`${def.label} vs ${def2.label} · ${season}`} />
           </div>
         )}
       </div>

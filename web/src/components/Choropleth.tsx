@@ -9,6 +9,7 @@ import { useId, useMemo, useRef, useState } from 'preact/hooks'
 import { formatMetric, type MetricDef } from '../data/metrics'
 import map from '../generated/map.json'
 import { ds, regionOf } from '../state/data'
+import { Bubbles, type BubbleLayer } from './map/Bubbles'
 import { MapLegend } from './map/Legend'
 import { MapOverlays, type OverlayLayers } from './map/Overlays'
 import { makeScale, type ColorScale } from './map/scale'
@@ -52,9 +53,10 @@ export interface ChoroplethProps {
   legend?: boolean
   label?: string
   overlays?: OverlayLayers | null // active geographic overlays, drawn above counties and below outlines
+  bubbles?: BubbleLayer | null // second metric as proportional bubbles (pointer-events none)
 }
 
-export function Choropleth({ values, def, onSelect, selected = '', homeCounty = '', dimOutsideRegion = '', scale, mini = false, legend = true, label, overlays }: ChoroplethProps) {
+export function Choropleth({ values, def, onSelect, selected = '', homeCounty = '', dimOutsideRegion = '', scale, mini = false, legend = true, label, overlays, bubbles }: ChoroplethProps) {
   const hover = useSignal<HoverState | null>(null)
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const hatch = `nodata-${uid}`
@@ -84,6 +86,7 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
 
   // Same vnode between renders => Preact skips re-diffing the (large) overlay group on filter changes.
   const overlayNode = useMemo(() => overlays && <MapOverlays layers={overlays} id={uid} mini={mini} />, [overlays, uid, mini])
+  const bubbleNode = useMemo(() => bubbles && order && <Bubbles layer={bubbles} order={order} labels={LABELS} mini={mini} />, [bubbles, order, mini])
 
   const fipsOf = (e: Event) => (e.target as Element | null)?.getAttribute?.('data-fips') ?? ''
 
@@ -159,6 +162,7 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
           {homeCounty && homeCounty !== selected && outline(homeCounty, 'home')}
           {selected && outline(selected, 'selected')}
           {focusFips && outline(focusFips, 'focus')}
+          {bubbleNode}
           {selLabel && (
             <text x={selLabel[0]} y={selLabel[1]} text-anchor="middle" dominant-baseline="middle" font-size={26} font-weight="700"
               fill="#fff" stroke="#000" stroke-width="5" paint-order="stroke" pointer-events="none">{NAMES[selected]}</text>
@@ -166,7 +170,7 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
         </svg>
         {!mini && <MapTooltip hover={hover} />}
       </div>
-      {legend && <MapLegend scale={sc} def={def} />}
+      {legend && <MapLegend scale={sc} def={def} bubbles={bubbles} />}
     </div>
   )
 }

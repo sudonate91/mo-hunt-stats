@@ -33,6 +33,9 @@
   means are pinned in `KNOWN_AVG_MISMATCHES`; two typo cells nulled in `CELL_ERRATA`.
 - Web: metrics hunters_per_sqmi, firearms/archery_hunters_per_sqmi, deer_per_hunter (harvest ÷ density×area),
   trips_per_kill; county card "Hunting pressure"; Compare rows; About "Permits vs harvest" table.
+- Map "Compare with" (URL `m2`): proportional bubbles for a second metric over the choropleth, scatter panel with OLS
+  line and Pearson r, linked selection; Ranks gets a second sortable column; effort metrics nudge the year to the latest
+  published (2024).
 - Not available anywhere: county-level permit sales (MDC last published them for permit year 2014), so "tags bought vs
   tags filled" is statewide only.
 

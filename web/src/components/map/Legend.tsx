@@ -3,9 +3,10 @@
  *  always renders 7 slots so the height never changes with the number of classes. */
 import { formatMetric, type MetricDef } from '../../data/metrics'
 import { Credit } from '../Shell'
+import { BubbleKey, type BubbleLayer } from './Bubbles'
 import { NODATA, type ColorScale } from './scale'
 
-export function MapLegend({ scale, def }: { scale: ColorScale; def: MetricDef }) {
+export function MapLegend({ scale, def, bubbles }: { scale: ColorScale; def: MetricDef; bubbles?: BubbleLayer | null }) {
   const slots = Array.from({ length: 7 }, (_, i) => scale.classes[i] ?? null)
   return (
     <div class="mt-2" aria-label={`Legend: ${def.label}`}>
@@ -26,7 +27,8 @@ export function MapLegend({ scale, def }: { scale: ColorScale; def: MetricDef })
           <div class="h-8 pt-0.5 text-[10px] sm:text-[11px] text-fg-3">No data</div>
         </div>
       </div>
-      <Credit units={def.units} />
+      {bubbles && <BubbleKey layer={bubbles} />}
+      <Credit units={bubbles ? `Fill: ${def.units}` : def.units} />
     </div>
   )
 }

@@ -3,7 +3,8 @@
  *
  * URL params: view, sp (species), y (yearFrom-yearTo), yr (single year for map/leaderboard), s (season),
  * p (portions, comma), m (method), yo (youth y/n), c (classes, comma), r (region), co (selected counties, comma),
- * metric, cmp (head-to-head pair "a,b"), ov (map overlays, comma: rivers, lakes, eco, roads, public).
+ * metric, m2 (second "compare with" metric drawn as map bubbles + scatter), cmp (head-to-head pair "a,b"),
+ * ov (map overlays, comma: rivers, lakes, eco, roads, public).
  */
 import { computed, effect, signal } from '@preact/signals'
 import type { Filter } from '../data/query'
@@ -37,6 +38,11 @@ const DEER_ONLY: Metric[] = ['buck_doe', 'button_share', 'archery_share', 'youth
   'hunters_per_sqmi', 'firearms_hunters_per_sqmi', 'archery_hunters_per_sqmi', 'deer_per_hunter', 'trips_per_kill']
 const TURKEY_ONLY: Metric[] = ['public_land_share', 'crossbow_share']
 
+/** A valid second metric for the species, else '' (never falls back to 'count'). */
+export function applicableMetric2(m: string, sp: Species): Metric | '' {
+  return METRIC_IDS.includes(m as Metric) && applicableMetric(m as Metric, sp) === m ? (m as Metric) : ''
+}
+
 /** The metric if it applies to the species, else 'count'. */
 export function applicableMetric(m: Metric, sp: Species): Metric {
   if (sp === 'deer' && TURKEY_ONLY.includes(m)) return 'count'
@@ -67,6 +73,8 @@ export const view = signal<View>('map')
 export const filter = signal<Filter>({ ...DEFAULT })
 export const year = signal<number>(2025) // map scrubber / leaderboard year
 export const metric = signal<Metric>('count')
+/** Second metric ("Compare with"): map bubbles, scatter panel, second ranks column. '' = off. */
+export const metric2 = signal<Metric | ''>('')
 export const selected = signal<string>('') // selected county fips (linked selection)
 export const compare = signal<[string, string]>(['', ''])
 export const sheetOpen = signal(false)
@@ -98,6 +106,7 @@ export function setFilter(patch: Partial<Filter>) {
     next.yearFrom = MIN_YEAR[patch.species]; next.yearTo = MAX_YEAR[patch.species]
     year.value = MAX_YEAR[patch.species]
     metric.value = 'count'
+    metric2.value = ''
   }
   filter.value = next
 }
@@ -131,6 +140,7 @@ export function readUrl() {
   const v = q.get('view') ?? 'map'
   view.value = VIEW_IDS.has(v) ? (v as View) : 'map'
   metric.value = applicableMetric((q.get('metric') ?? 'count') as Metric, sp)
+  metric2.value = applicableMetric2(q.get('m2') ?? '', sp)
   const sel = q.get('sel') ?? ''
   selected.value = fips(sel) ? sel : ''
   const cmp = list(q.get('cmp'))
@@ -155,6 +165,7 @@ export function toUrl(): string {
   if (f.region) q.set('r', f.region)
   if (f.counties.length) q.set('co', f.counties.join(','))
   if (metric.value !== 'count') q.set('metric', metric.value)
+  if (metric2.value) q.set('m2', metric2.value)
   if (selected.value) q.set('sel', selected.value)
   if (compare.value[0] || compare.value[1]) q.set('cmp', compare.value.join(','))
   if (overlays.value.length) q.set('ov', overlays.value.map((id) => OVERLAY_TOKENS[id]).join(','))
