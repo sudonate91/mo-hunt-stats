@@ -39,6 +39,8 @@ export default defineConfig({
         navigateFallbackDenylist: [/\/data\//, /\/assets\//],
         ignoreURLParametersMatching: [/.*/],
         cleanupOutdatedCaches: true,
+        skipWaiting: true, // a new SW activates immediately instead of waiting for every tab to close
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: ({ url }) => /\/data\/[^/]+\.json$/.test(url.pathname),
