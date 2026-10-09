@@ -1,0 +1,138 @@
+name: scrape-validate-build-deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: Re-fetch MDC pages
+        type: boolean
+        default: true
+  schedule:
+    # Weekly on Mondays 12:00 UTC during deer/turkey reporting season (Sep–Jan)
+    - cron: '0 12 * * 1'
+    # Monthly on the 1st otherwise (the job skips itself when the weekly schedule applies)
+    - cron: '0 12 1 * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    name: Scrape + validate
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide whether this scheduled run should scrape
+        id: when
+        run: |
+          month=$(date -u +%m)
+          weekly=${{ github.event.schedule == '0 12 * * 1' }}
+          monthly=${{ github.event.schedule == '0 12 1 * *' }}
+          in_season=false; case "$month" in 09|10|11|12|01) in_season=true;; esac
+          refresh=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then refresh=${{ inputs.refresh }}; fi
+          if [ "$weekly" = "true" ] && [ "$in_season" = "true" ]; then refresh=true; fi
+          if [ "$monthly" = "true" ] && [ "$in_season" = "false" ]; then refresh=true; fi
+          echo "refresh=$refresh" >> "$GITHUB_OUTPUT"
+          echo "refresh=$refresh (month=$month weekly=$weekly monthly=$monthly)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+      - run: pip install -r scraper/requirements.txt
+      - name: Scrape (fails loudly on validation errors)
+        working-directory: scraper
+        run: |
+          set -e
+          if [ "${{ steps.when.outputs.refresh }}" = "true" ]; then
+            python -m mohunt.build --refresh
+            python -m mohunt.county_dim
+            python -m mohunt.cwd --refresh
+          else
+            python -m mohunt.build
+          fi
+      - name: Tests (totals must match MDC's printed totals)
+        working-directory: scraper
+        run: python -m pytest -q
+      - name: Commit refreshed data
+        id: commit
+        if: steps.when.outputs.refresh == 'true' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "data: scheduled MDC refresh $(date -u +%F)"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data
+          path: |
+            data/*.json
+            data/*.geojson
+            data/*.parquet
+
+  build:
+    name: Build web + budgets
+    needs: scrape
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: data
+          path: data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - name: Build
+        working-directory: web
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: npm run build
+      - name: Bundle budget (fails on > 150 KB gz initial JS or > 5% regression)
+        working-directory: web
+        run: node scripts/check-bundle.mjs
+      - name: Lighthouse (mobile, performance ≥ 90)
+        working-directory: web
+        run: |
+          npm run preview -- --port 4173 --strictPort &
+          sleep 3
+          npx --yes @lhci/cli@0.14.x autorun --collect.url="http://localhost:4173/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
