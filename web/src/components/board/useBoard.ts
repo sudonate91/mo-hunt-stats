@@ -1,9 +1,9 @@
 /** Leaderboard computation: one pass per (filter, metric, year). */
 import { useMemo } from 'preact/hooks'
-import { countyMetric, countySeries, rankValues, type MetricDef } from '../../data/metrics'
+import { countyMetric, countySeries, rankMetric, type MetricDef } from '../../data/metrics'
 import { filterKey } from '../../data/query'
 import { attrs, counties, ds, regionOf } from '../../state/data'
-import { filter, metric, year } from '../../state/filters'
+import { applicableMetric, filter, metric, year } from '../../state/filters'
 
 export interface BoardRow {
   idx: number
@@ -22,7 +22,7 @@ export interface Board { rows: BoardRow[]; def: MetricDef; sparkYears: number[];
 const SPARK_N = 6
 
 export function useBoard(): Board | null {
-  const d = ds.value, cs = counties.value, f = filter.value, y = year.value, m = metric.value, a = attrs.value
+  const d = ds.value, cs = counties.value, f = filter.value, y = year.value, m = applicableMetric(metric.value, filter.value.species), a = attrs.value
   const ro = regionOf.value
   const fk = filterKey(f)
   return useMemo(() => {
@@ -37,8 +37,8 @@ export function useBoard(): Board | null {
     // Sparkline is always harvest (one pass over the fact table), whatever the ranked metric.
     const series = countySeries(d, f, ro)
     const s0 = Math.max(0, yi - SPARK_N + 1)
-    const rank = rankValues(cur)
-    const prevRank = prev ? rankValues(prev) : null
+    const rank = rankMetric(cur, def)
+    const prevRank = prev ? rankMetric(prev, def) : null
     let stateTotal = 0
     if (m === 'count') {
       const st = f.region ? countyMetric(d, cs, { ...f, region: '' }, ro, 'count', y).values : cur

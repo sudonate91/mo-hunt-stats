@@ -18,6 +18,33 @@ export const SUBTOTAL_PORTIONS = new Set([
   'opening_weekend', 'all_firearms', 'grand_total', 'spring_opening_day', 'spring_first_week',
 ])
 
+/**
+ * Seasons that are only partly reported (turkey: a year with spring results but no fall yet). Year-over-year
+ * comparisons must compare like with like, so when the season filter is empty, these years and their comparison
+ * years are evaluated spring-only. Memoized per dataset.
+ */
+const partialCache = new WeakMap<Dataset, Set<number>>()
+export function partialYears(ds: Dataset): Set<number> {
+  let s = partialCache.get(ds)
+  if (s) return s
+  s = new Set()
+  const fall = ds.dict.season.indexOf('fall')
+  if (ds.dict.season.length > 1 && fall >= 0) {
+    const hasFall = new Set<number>()
+    for (let i = 0; i < ds.n; i++) if (ds.season[i] === fall) hasFall.add(ds.year[i])
+    for (const y of ds.years) if (!hasFall.has(y)) s.add(y)
+  }
+  partialCache.set(ds, s)
+  return s
+}
+
+/** Filter widened to all years; with `comparable`, forced to spring when the dataset has a spring-only year and no season filter. */
+export function comparableFilter(ds: Dataset, f: Filter, comparable: boolean): Filter {
+  const out: Filter = { ...f, yearFrom: ds.years[0], yearTo: ds.years[ds.years.length - 1] }
+  if (comparable && !f.season && partialYears(ds).size) out.season = 'spring'
+  return out
+}
+
 export function filterKey(f: Filter): string {
   return [f.species, f.yearFrom, f.yearTo, f.season, f.portions.join(','), f.method, f.youth, f.classes.join(','), f.region].join('|')
 }

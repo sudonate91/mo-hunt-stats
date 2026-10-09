@@ -5,9 +5,10 @@ import { PORTION_LABEL, filterKey, mask, type Filter } from '../../data/query'
 import type { Dataset } from '../../data/types'
 import type { StackedGroup } from '../charts/BarChart'
 import type { LineSeries } from '../charts/LineChart'
+import { publicLandParts } from '../../data/facts'
 import { fmt, pct, seasonLabel } from '../charts/format'
 import { attrs, counties, ds, regionOf } from '../../state/data'
-import { compare, filter, homeCounty, metric, year } from '../../state/filters'
+import { applicableMetric, compare, filter, homeCounty, metric, year } from '../../state/filters'
 import { basePortions, portionColor, resolvePlace, sumSeries, yearsIn, type Place } from '../analysis/agg'
 
 export const SIDE_COLORS = ['#ff6a13', '#4cc9f0'] as const
@@ -36,27 +37,28 @@ function countyPortion(d: Dataset, m: Uint8Array, y: number): Float64Array[] {
 
 export function useH2H(): H2H | null {
   const d = ds.value, cs = counties.value, f = filter.value, y = year.value, ro = regionOf.value, a = attrs.value
-  const met = metric.value, [ka, kb] = compare.value, home = homeCounty.value
+  const metRaw = metric.value, [ka, kb] = compare.value, home = homeCounty.value
   const fk = filterKey(f)
   return useMemo(() => {
     if (!d || !cs) return null
     const sp = f.species
+    const met = applicableMetric(metRaw, sp)
     const full: Filter = { ...f, region: '', yearFrom: d.years[0], yearTo: d.years[d.years.length - 1] }
     const all = countySeries(d, full, ro)
     const yi = d.years.indexOf(y)
     const col = all.map((s) => (yi < 0 ? NaN : s[yi]))
 
     // Defaults: home county (or Franklin) vs the top county this season.
-    const keyA = ka || home || DEFAULT_A
-    let keyB = kb
-    if (!keyB) {
+    const pa = resolvePlace(ka || home || DEFAULT_A, d, cs) ?? resolvePlace(DEFAULT_A, d, cs)
+    if (!pa) return null
+    // B defaults to the best county this season that is not A; also used when B would duplicate A.
+    let pb = kb ? resolvePlace(kb, d, cs) : null
+    if (!pb || pb.key === pa.key) {
       const order = col.map((v, i) => [v, i] as const).filter(([v]) => Number.isFinite(v)).sort((p, q) => q[0] - p[0])
-      const top = order.find(([, i]) => d.dict.county[i] !== keyA)
-      keyB = top ? d.dict.county[top[1]] : ''
+      const top = order.find(([, i]) => d.dict.county[i] !== pa.key)
+      pb = top ? resolvePlace(d.dict.county[top[1]], d, cs) : null
     }
-    const pa = resolvePlace(keyA, d, cs) ?? resolvePlace(DEFAULT_A, d, cs)
-    const pb = resolvePlace(keyB, d, cs)
-    if (!pa || !pb) return null
+    if (!pb) return null
     const places: [Place, Place] = [pa, pb]
     const series = places.map((p) => sumSeries(all, p.idx))
 
@@ -76,17 +78,18 @@ export function useH2H(): H2H | null {
     const at = (s: Float64Array, i: number) => (i >= 0 && i < s.length ? s[i] : NaN)
     const harvest = series.map((s) => at(s, yi))
     const prev = series.map((s) => at(s, yi - 1))
-    const avg5 = series.map((s) => { const w = yi < 0 ? [] : Array.from(s.slice(Math.max(0, yi - 4), yi + 1)); return w.length ? w.reduce((p, q) => p + q, 0) / w.length : NaN })
+    // Previous five seasons (current excluded), matching the map's vs_5yr metric.
+    const avg5 = series.map((s) => { const w = yi <= 0 ? [] : Array.from(s.slice(Math.max(0, yi - 5), yi)); return w.length ? w.reduce((p, q) => p + q, 0) / w.length : NaN })
     const best = series.map((s) => { let bi = 0; s.forEach((v, i) => { if (v > s[bi]) bi = i }); return [s[bi], d.years[bi]] as const })
     const ranks = places.map(rankOf)
     const two = <T,>(g: (k: 0 | 1) => T): [T, T] => [g(0), g(1)]
 
     const rows: StatRow[] = [
       { label: 'Harvest', values: two((k) => harvest[k]), text: two((k) => fmt(harvest[k])), better: 'high', highlight: met === 'count' },
-      { label: 'Per sq mi', values: two((k) => harvest[k] / places[k].area), text: two((k) => (harvest[k] / places[k].area).toFixed(2)), better: 'high', highlight: met === 'per_sqmi' },
+      { label: 'Per sq mi', values: two((k) => harvest[k] / places[k].area), text: two((k) => { const v = harvest[k] / places[k].area; return Number.isFinite(v) ? v.toFixed(2) : '–' }), better: 'high', highlight: met === 'per_sqmi' },
       { label: 'Rank', values: two((k) => ranks[k][0]), text: two((k) => (Number.isFinite(ranks[k][0]) ? `#${ranks[k][0]} of ${ranks[k][1]}` : '–')), better: pa.isRegion === pb.isRegion ? 'low' : null },
       { label: 'Change vs last year', values: two((k) => (prev[k] > 0 ? harvest[k] / prev[k] - 1 : NaN)), text: two((k) => (prev[k] > 0 ? formatMetric(harvest[k] / prev[k] - 1, metricDef('change_yoy')) : '–')), better: 'high', highlight: met === 'change_yoy' },
-      { label: '5-season avg', values: two((k) => avg5[k]), text: two((k) => fmt(avg5[k])), better: 'high' },
+      { label: 'Prev. 5-season avg', values: two((k) => avg5[k]), text: two((k) => fmt(avg5[k])), better: 'high' },
     ]
 
     if (sp === 'deer') {
@@ -95,14 +98,13 @@ export function useH2H(): H2H | null {
       const r = two((k) => { const b = at(sumSeries(bucks, places[k].idx), yi), o = at(sumSeries(does, places[k].idx), yi); return o > 0 ? b / o : NaN })
       rows.push({ label: 'Buck : doe', values: r, text: two((k) => (Number.isFinite(r[k]) ? r[k].toFixed(2) : '–')), better: 'high', highlight: met === 'buck_doe' })
     } else {
-      const portions = f.portions.length ? f.portions : d.dict.portion.filter((p) => !['spring_opening_day', 'spring_first_week'].includes(p))
-      const denom = countySeries(d, { ...full, portions, classes: [] }, ro)
+      // Only (portion, county) pairs with attribute rows count, so unreported seasons show '–', not 0%.
+      const parts = a && yi >= 0 ? publicLandParts(d, full, ro, y, a) : null
       const r = two((k) => {
-        if (!a) return NaN
-        let num = 0
-        for (const i of places[k].idx) for (const p of portions) num += a.byKey.get(`${y}:${p}:${d.dict.county[i]}`)?.public_land ?? 0
-        const den = at(sumSeries(denom, places[k].idx), yi)
-        return den > 0 ? num / den : NaN
+        if (!parts) return NaN
+        let num = 0, den = 0, any = false
+        for (const i of places[k].idx) if (parts.has[i]) { any = true; num += parts.num[i]; den += parts.den[i] }
+        return any && den > 0 ? num / den : NaN
       })
       rows.push({ label: 'Public-land share', values: r, text: two((k) => pct(r[k])), better: 'high', highlight: met === 'public_land_share' })
     }
@@ -144,5 +146,5 @@ export function useH2H(): H2H | null {
       mixCats: mixKeys.map((q) => ({ key: q, label: PORTION_LABEL[q] ?? q })),
       mixColors: mixKeys.map((q) => portionColor(sp, q)),
     }
-  }, [d, cs, fk, y, ro, a, met, ka, kb, home])
+  }, [d, cs, fk, y, ro, a, metRaw, ka, kb, home])
 }

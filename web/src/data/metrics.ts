@@ -3,7 +3,7 @@
  * the map and the record book agree. Values are per county index (ds.dict.county order); NaN = undefined.
  */
 import type { Metric } from '../state/filters'
-import { mask, maskYear, sumByCounty, sumByCountyYear, type Filter } from './query'
+import { comparableFilter, mask, maskYear, sumByCounty, sumByCountyYear, type Filter } from './query'
 import type { Attributes, County, Dataset, Species } from './types'
 
 export interface MetricDef {
@@ -48,15 +48,24 @@ export function formatMetric(v: number, def: MetricDef): string {
 type RegionOf = (fips: string) => string
 
 /** Sum per county for a single year under filter f (with optional overrides of portions/classes/method/youth). */
-function countsFor(ds: Dataset, f: Filter, regionOf: RegionOf, year: number, patch: Partial<Filter> = {}): Float64Array {
-  const m = mask(ds, { ...f, ...patch, yearFrom: ds.years[0], yearTo: ds.years[ds.years.length - 1] }, regionOf)
+function countsFor(ds: Dataset, f: Filter, regionOf: RegionOf, year: number, patch: Partial<Filter> = {}, comparable = false): Float64Array {
+  const m = mask(ds, comparableFilter(ds, { ...f, ...patch }, comparable), regionOf)
   return sumByCounty(ds, maskYear(ds, m, year))
 }
 
-/** Per-county series across all seasons under filter f (year range ignored so trends can show history). */
-export function countySeries(ds: Dataset, f: Filter, regionOf: RegionOf, patch: Partial<Filter> = {}): Float64Array[] {
-  const m = mask(ds, { ...f, ...patch, yearFrom: ds.years[0], yearTo: ds.years[ds.years.length - 1] }, regionOf)
+/**
+ * Per-county series across all seasons under filter f (year range ignored so trends can show history).
+ * `comparable` restricts a partially reported species (turkey with a spring-only year) to spring so seasons compare
+ * like with like; use it for year-over-year math, not for plain totals.
+ */
+export function countySeries(ds: Dataset, f: Filter, regionOf: RegionOf, patch: Partial<Filter> = {}, comparable = false): Float64Array[] {
+  const m = mask(ds, comparableFilter(ds, { ...f, ...patch }, comparable), regionOf)
   return sumByCountyYear(ds, m)
+}
+
+/** Ranks for a metric: diverging metrics rank negatives too; count-like metrics leave zero/negative unranked. */
+export function rankMetric(values: Float64Array, def: MetricDef): Int32Array {
+  return rankValues(values, !def.diverging)
 }
 
 function div(a: Float64Array, b: Float64Array): Float64Array {
@@ -93,19 +102,21 @@ export function countyMetric(
     case 'count': values = base; break
     case 'per_sqmi': values = div(base, area); break
     case 'change_yoy': {
-      const prev = countsFor(ds, f, regionOf, year - 1)
+      const cur = countsFor(ds, f, regionOf, year, {}, true)
+      const prev = countsFor(ds, f, regionOf, year - 1, {}, true)
       values = new Float64Array(base.length)
-      for (let i = 0; i < base.length; i++) values[i] = prev[i] > 0 ? base[i] / prev[i] - 1 : NaN
+      for (let i = 0; i < base.length; i++) values[i] = prev[i] > 0 ? cur[i] / prev[i] - 1 : NaN
       break
     }
     case 'vs_5yr': {
-      const series = countySeries(ds, f, regionOf)
+      const series = countySeries(ds, f, regionOf, {}, true)
+      const cur = countsFor(ds, f, regionOf, year, {}, true)
       const yi = ds.years.indexOf(year)
-      values = new Float64Array(base.length)
-      for (let i = 0; i < base.length; i++) {
+      values = new Float64Array(base.length).fill(NaN)
+      for (let i = 0; yi > 0 && i < base.length; i++) {
         const prev = series[i].slice(Math.max(0, yi - 5), yi)
         const avg = prev.length ? prev.reduce((a, b) => a + b, 0) / prev.length : 0
-        values[i] = avg > 0 ? base[i] / avg - 1 : NaN
+        values[i] = avg > 0 ? cur[i] / avg - 1 : NaN
       }
       break
     }
@@ -118,17 +129,21 @@ export function countyMetric(
     case 'public_land_share':
     case 'crossbow_share': {
       const key = metric === 'public_land_share' ? 'public_land' : 'crossbow'
-      const portions = metric === 'crossbow_share' ? ['fall_archery'] : (f.portions.length ? f.portions : ds.dict.portion.filter((p) => !['spring_opening_day', 'spring_first_week'].includes(p)))
-      const denom = countsFor(ds, f, regionOf, year, { portions, classes: [] })
-      const num = new Float64Array(base.length)
-      for (let i = 0; i < base.length; i++) {
-        for (const p of portions) {
-          const a = attrs?.byKey.get(`${year}:${p}:${ds.dict.county[i]}`)
-          if (a) num[i] += a[key]
+      const candidates = metric === 'crossbow_share' ? ['fall_archery'] : (f.portions.length ? f.portions : ds.dict.portion.filter((p) => !['spring_opening_day', 'spring_first_week'].includes(p)))
+      // Only portions MDC reported attributes for in this year count, in both numerator and denominator.
+      const portions = candidates.filter((p) => attrs && ds.dict.county.some((c) => attrs.byKey.has(`${year}:${p}:${c}`)))
+      values = new Float64Array(base.length).fill(NaN)
+      if (portions.length && attrs) {
+        const denom = countsFor(ds, f, regionOf, year, { portions, classes: [] })
+        const num = new Float64Array(base.length)
+        for (let i = 0; i < base.length; i++) {
+          for (const p of portions) {
+            const a = attrs.byKey.get(`${year}:${p}:${ds.dict.county[i]}`)
+            if (a) num[i] += a[key]
+          }
         }
+        values = div(num, denom)
       }
-      values = div(num, denom)
-      if (!attrs) values.fill(NaN)
       break
     }
     default: values = base
@@ -137,13 +152,21 @@ export function countyMetric(
   return { values, def }
 }
 
-/** Ranks (1 = highest) over finite values; NaN gets 0. */
-export function rankValues(values: Float64Array): Int32Array {
+/**
+ * Competition ranks (1 = highest, ties share a rank). Non-finite values are unranked (0). For count-like metrics
+ * (`positiveOnly`, the default) zero and negative values are also unranked, so counties with no harvest in a sparse
+ * slice do not get spurious ranks; pass `false` for diverging metrics (change, z-score) where negatives are real.
+ */
+export function rankValues(values: Float64Array, positiveOnly = true): Int32Array {
   const idx: number[] = []
-  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) idx.push(i)
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i]) && (!positiveOnly || values[i] > 0)) idx.push(i)
   idx.sort((a, b) => values[b] - values[a])
   const r = new Int32Array(values.length)
-  idx.forEach((i, pos) => { r[i] = pos + 1 })
+  let rank = 0
+  idx.forEach((i, pos) => {
+    if (pos === 0 || values[i] !== values[idx[pos - 1]]) rank = pos + 1
+    r[i] = rank
+  })
   return r
 }
 

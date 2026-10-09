@@ -23,7 +23,38 @@ export type Metric = 'count' | 'per_sqmi' | 'change_yoy' | 'vs_5yr' | 'buck_doe'
   | 'archery_share' | 'youth_share' | 'opening_share' | 'public_land_share' | 'crossbow_share'
 
 export const MIN_YEAR: Record<Species, number> = { deer: 2015, turkey: 2015 }
+/** Latest season per species. Seeded with the known values and updated from the loaded data (see state/data.ts). */
 export const MAX_YEAR: Record<Species, number> = { deer: 2025, turkey: 2026 }
+
+const SEASONS = new Set(['spring', 'fall'])
+const METHODS = new Set(['firearm', 'archery', 'mixed'])
+const VIEW_IDS = new Set<string>(['map', 'county', 'board', 'trends', 'seasons', 'h2h', 'records', 'about'])
+export const METRIC_IDS: Metric[] = ['count', 'per_sqmi', 'change_yoy', 'vs_5yr', 'buck_doe', 'button_share', 'zscore',
+  'archery_share', 'youth_share', 'opening_share', 'public_land_share', 'crossbow_share']
+const DEER_ONLY: Metric[] = ['buck_doe', 'button_share', 'archery_share', 'youth_share', 'opening_share']
+const TURKEY_ONLY: Metric[] = ['public_land_share', 'crossbow_share']
+
+/** The metric if it applies to the species, else 'count'. */
+export function applicableMetric(m: Metric, sp: Species): Metric {
+  if (sp === 'deer' && TURKEY_ONLY.includes(m)) return 'count'
+  if (sp === 'turkey' && DEER_ONLY.includes(m)) return 'count'
+  return METRIC_IDS.includes(m) ? m : 'count'
+}
+
+export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+
+/** Called by the data layer once a dataset is loaded, so the slider range and defaults follow the data. */
+export function registerYears(sp: Species, years: number[]) {
+  if (!years.length) return
+  MIN_YEAR[sp] = years[0]
+  MAX_YEAR[sp] = years[years.length - 1]
+  const f = filter.value
+  if (f.species === sp) {
+    const yearTo = clamp(f.yearTo, MIN_YEAR[sp], MAX_YEAR[sp]), yearFrom = clamp(f.yearFrom, MIN_YEAR[sp], yearTo)
+    if (yearTo !== f.yearTo || yearFrom !== f.yearFrom) filter.value = { ...f, yearFrom, yearTo }
+    year.value = clamp(year.value, yearFrom, yearTo)
+  }
+}
 
 const DEFAULT: Filter = {
   species: 'deer', yearFrom: 2015, yearTo: 2025, season: '', portions: [], method: '', youth: '', classes: [], region: '', counties: [],
@@ -46,6 +77,11 @@ export const species = computed(() => filter.value.species)
 
 export function setFilter(patch: Partial<Filter>) {
   const next = { ...filter.value, ...patch }
+  if (patch.yearFrom !== undefined || patch.yearTo !== undefined) {
+    next.yearTo = clamp(next.yearTo, MIN_YEAR[next.species], MAX_YEAR[next.species])
+    next.yearFrom = clamp(next.yearFrom, MIN_YEAR[next.species], next.yearTo)
+    year.value = clamp(year.value, next.yearFrom, next.yearTo)
+  }
   if (patch.species && patch.species !== filter.value.species) {
     // species switch resets species-specific selections
     next.portions = []; next.classes = []; next.season = ''; next.method = ''; next.youth = ''
@@ -63,25 +99,33 @@ export function readUrl() {
   const q = new URLSearchParams(location.search)
   const sp = (q.get('sp') === 'turkey' ? 'turkey' : 'deer') as Species
   const [a, b] = (q.get('y') ?? '').split('-').map(Number)
+  const yearTo = clamp(b || MAX_YEAR[sp], MIN_YEAR[sp], MAX_YEAR[sp])
+  const yearFrom = clamp(a || MIN_YEAR[sp], MIN_YEAR[sp], yearTo)
+  const s = q.get('s') ?? '', m = q.get('m') ?? '', yo = q.get('yo') ?? ''
+  const fips = (v: string) => /^\d{5}$/.test(v)
   const f: Filter = {
     species: sp,
-    yearFrom: a || MIN_YEAR[sp],
-    yearTo: b || MAX_YEAR[sp],
-    season: (q.get('s') as Season) || '',
-    portions: list(q.get('p')),
-    method: (q.get('m') as Method) || '',
-    youth: (q.get('yo') as '' | 'y' | 'n') || '',
-    classes: list(q.get('c')),
-    region: q.get('r') ?? '',
-    counties: list(q.get('co')),
+    yearFrom,
+    yearTo,
+    season: SEASONS.has(s) ? (s as Season) : '',
+    portions: list(q.get('p')).filter((p) => /^[a-z_]+$/.test(p)),
+    method: METHODS.has(m) ? (m as Method) : '',
+    youth: yo === 'y' || yo === 'n' ? yo : '',
+    classes: list(q.get('c')).filter((c) => /^[a-z_]+$/.test(c)),
+    region: (q.get('r') ?? '').slice(0, 40),
+    counties: list(q.get('co')).filter(fips).slice(0, 5),
   }
   filter.value = f
-  year.value = Number(q.get('yr')) || f.yearTo
-  view.value = (q.get('view') as View) || 'map'
-  metric.value = (q.get('metric') as Metric) || 'count'
-  selected.value = q.get('sel') ?? ''
+  const yr = Number(q.get('yr'))
+  year.value = Number.isInteger(yr) && yr >= yearFrom && yr <= yearTo ? yr : yearTo
+  const v = q.get('view') ?? 'map'
+  view.value = VIEW_IDS.has(v) ? (v as View) : 'map'
+  metric.value = applicableMetric((q.get('metric') ?? 'count') as Metric, sp)
+  const sel = q.get('sel') ?? ''
+  selected.value = fips(sel) ? sel : ''
   const cmp = list(q.get('cmp'))
-  compare.value = [cmp[0] ?? '', cmp[1] ?? '']
+  const okCmp = (v: string | undefined) => (v && (fips(v) || /^region:[A-Za-z. ]{1,30}$/.test(v)) ? v : '')
+  compare.value = [okCmp(cmp[0]), okCmp(cmp[1])]
 }
 
 export function toUrl(): string {

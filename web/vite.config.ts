@@ -33,19 +33,13 @@ export default defineConfig({
         // App shell only; data JSON is runtime-cached so a data refresh never needs a new SW.
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         globIgnores: ['data/**'],
-        navigateFallback: null, // navigations go NetworkFirst below
+        // Navigations are served from the precached index.html (so a stale HTML never points at deleted hashed
+        // assets); every filter URL maps to the same shell because all query params are ignored.
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/\/data\//, /\/assets\//],
+        ignoreURLParametersMatching: [/.*/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.mode === 'navigate',
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pages',
-              networkTimeoutSeconds: 3,
-              matchOptions: { ignoreSearch: true }, // every filter URL shares the cached shell
-              cacheableResponse: { statuses: [200] },
-            },
-          },
           {
             urlPattern: ({ url }) => /\/data\/[^/]+\.json$/.test(url.pathname),
             handler: 'StaleWhileRevalidate',

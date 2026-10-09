@@ -13,8 +13,12 @@ export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id, form
   { bars: Bar[]; units?: string; title?: string; onSelect?: (id: string) => void; maxBars?: number; id?: string; format?: (v: number) => string }) {
   const [table, setTable] = useState(false)
   const shown = bars.slice(0, maxBars)
-  const max = Math.max(1, ...shown.map((b) => b.value))
-  const rowH = 26, labelW = 110
+  const max = Math.max(...shown.map((b) => Math.abs(b.value)).filter(Number.isFinite), Number.EPSILON)
+  const rowH = 26, labelW = 110, plotW = 400 - labelW - 60
+  const anyNeg = shown.some((b) => b.value < 0)
+  // With negatives the baseline sits mid-plot and each side gets half the width.
+  const base = anyNeg ? labelW + plotW / 2 : labelW
+  const span = anyNeg ? plotW / 2 : plotW
   const h = shown.length * rowH + 4
   return (
     <figure class="m-0" id={id} data-share-title={title}>
@@ -26,19 +30,24 @@ export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id, form
         {id && <ShareButton target={id} />}
       </div>
       {table ? (
-        <DataTable columns={['#', 'Name', units ?? 'Value']} rows={shown.map((b, i) => [i + 1, b.label, format(b.value)])} />
+        <DataTable columns={['#', 'Name', units ?? 'Value']} rows={shown.map((b, i) => [i + 1, b.label, Number.isFinite(b.value) ? format(b.value) : '–'])} />
       ) : (
         <svg viewBox={`0 0 400 ${h}`} class="w-full" style={{ height: `${h}px` }} role="img" aria-label={title}>
           {shown.map((b, i) => {
-            const w = ((400 - labelW - 60) * b.value) / max
+            const ok = Number.isFinite(b.value)
+            const w = ok ? Math.max(0, (span * Math.abs(b.value)) / max) : 0
+            const neg = ok && b.value < 0
+            const x0 = neg ? base - w : base
+            const tx = ok && !neg ? base + w + 6 : base + 6
             return (
               <g key={b.id ?? b.label} transform={`translate(0,${i * rowH + 2})`} class={onSelect ? 'cursor-pointer' : ''}
                 onClick={() => b.id && onSelect?.(b.id)}>
-                <title>{`${b.label}: ${format(b.value)}${b.sub ? ` (${b.sub})` : ''}`}</title>
+                <title>{`${b.label}: ${ok ? format(b.value) : '–'}${b.sub ? ` (${b.sub})` : ''}`}</title>
                 <rect x="0" y="0" width="400" height={rowH - 2} fill="transparent" />
                 <text x={labelW - 6} y={rowH / 2 + 3} text-anchor="end" font-size="12" fill={b.highlight ? '#ffd166' : '#b5b5b8'}>{b.label}</text>
-                <rect x={labelW} y="4" width={Math.max(1, w)} height={rowH - 10} rx="3" fill={b.highlight ? '#ffd166' : '#ff6a13'} />
-                <text x={labelW + w + 6} y={rowH / 2 + 3} font-size="12" fill="#f2f2f2">{format(b.value)}{b.sub ? <tspan fill="#939399"> {b.sub}</tspan> : null}</text>
+                {anyNeg && <line x1={base} x2={base} y1="2" y2={rowH - 4} stroke="#4a4a4e" />}
+                {ok && <rect x={x0} y="4" width={Math.max(neg ? 0 : 1, w)} height={rowH - 10} rx="3" fill={b.highlight ? '#ffd166' : '#ff6a13'} />}
+                <text x={tx} y={rowH / 2 + 3} font-size="12" fill="#f2f2f2">{ok ? format(b.value) : '–'}{b.sub ? <tspan fill="#939399"> {b.sub}</tspan> : null}</text>
               </g>
             )
           })}

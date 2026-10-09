@@ -3,7 +3,7 @@ import { computed, effect, signal } from '@preact/signals'
 import { loadAttributes, loadCounties, loadCwd, loadDataset } from '../data/load'
 import { mask } from '../data/query'
 import type { Attributes, County, CwdJson, Dataset } from '../data/types'
-import { filter } from './filters'
+import { filter, registerYears } from './filters'
 
 export const counties = signal<County[] | null>(null)
 export const ds = signal<Dataset | null>(null)
@@ -34,7 +34,7 @@ export function startDataLoading() {
     const sp = filter.value.species
     ds.value = null
     loadDataset(sp)
-      .then((d) => { if (filter.value.species === sp) ds.value = d })
+      .then((d) => { if (filter.value.species === sp) { registerYears(sp, d.years); ds.value = d } })
       .catch((e) => (loadError.value = String(e)))
     if (sp === 'turkey') loadAttributes().then((a) => (attrs.value = a)).catch(() => { /* optional */ })
   })

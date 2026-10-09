@@ -3,7 +3,7 @@ import { useSignal } from '@preact/signals'
 import { CLASS_LABEL, CLASS_ORDER, PORTION_LABEL, PORTION_ORDER, SUBTOTAL_PORTIONS } from '../data/query'
 import type { Species } from '../data/types'
 import { ds, regions } from '../state/data'
-import { MAX_YEAR, MIN_YEAR, activeFilterCount, filter, setFilter, sheetOpen, year } from '../state/filters'
+import { MAX_YEAR, MIN_YEAR, activeFilterCount, filter, setFilter, sheetOpen } from '../state/filters'
 import { HomeCountyPicker } from './HomeCountyPicker'
 
 function Chip({ on, onClick, children, title }: { on: boolean; onClick: () => void; children: preact.ComponentChildren; title?: string }) {
@@ -58,7 +58,7 @@ export function FilterControls() {
         <div class="w-full flex items-center gap-2">
           <label class="text-xs text-fg-3 w-8">To</label>
           <input type="range" class="flex-1 accent-blaze" min={MIN_YEAR[sp]} max={MAX_YEAR[sp]} value={f.yearTo}
-            aria-label="Last season" onInput={(e) => { const v = +(e.currentTarget as HTMLInputElement).value; setFilter({ yearTo: Math.max(v, f.yearFrom) }); if (year.value > v) year.value = v }} />
+            aria-label="Last season" onInput={(e) => { const v = +(e.currentTarget as HTMLInputElement).value; setFilter({ yearTo: Math.max(v, f.yearFrom) }) }} />
         </div>
       </Section>
 

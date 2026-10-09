@@ -30,6 +30,31 @@ export function ordinal(n: number): string {
   return `${n}${s}`
 }
 
+/**
+ * Turkey public-land counts per county index for one season, using only (portion, county) pairs that have an
+ * attribute row, so seasons/portions MDC did not report never read as 0% public land. `has` marks counties with
+ * at least one such row; share = num / den over those.
+ */
+export function publicLandParts(ds: Dataset, f: Filter, regionOf: (fips: string) => string, year: number, attrs: Attributes):
+  { num: Float64Array; den: Float64Array; has: Uint8Array } {
+  const portions = f.portions.length ? f.portions : ds.dict.portion.filter((p) => !['spring_opening_day', 'spring_first_week'].includes(p))
+  const n = ds.dict.county.length
+  const num = new Float64Array(n), den = new Float64Array(n), has = new Uint8Array(n)
+  for (let i = 0; i < n; i++) {
+    for (const p of portions) {
+      const a = attrs.byKey.get(`${year}:${p}:${ds.dict.county[i]}`)
+      if (a) { num[i] += a.public_land; has[i] = 1 }
+    }
+  }
+  const m = mask(ds, { ...f, portions, classes: [], yearFrom: year, yearTo: year }, regionOf)
+  for (let r = 0; r < ds.n; r++) {
+    if (!m[r] || ds.year[r] !== year) continue
+    const c = ds.county[r]
+    if (attrs.byKey.has(`${year}:${ds.dict.portion[ds.portion[r]]}:${ds.dict.county[c]}`)) den[c] += ds.count[r]
+  }
+  return { num, den, has }
+}
+
 const argmax = (v: ArrayLike<number>) => {
   let best = -1
   for (let i = 0; i < v.length; i++) if (Number.isFinite(v[i]) && (best < 0 || v[i] > v[best])) best = i
@@ -72,7 +97,7 @@ export function makeFacts(inp: FactInput): Fact[] {
 
   // Home county rank (pinned first)
   const hi = home ? ds.dict.county.indexOf(home) : -1
-  if (hi >= 0 && cur[hi] > 0) {
+  if (hi >= 0 && cur[hi] > 0 && ranks[hi] > 0) { // rank 0 = unranked
     const r = ranks[hi]
     const pr = prev ? rankValues(prev)[hi] : 0
     const d = pr > 0 ? pr - r : 0
@@ -141,7 +166,8 @@ export function makeFacts(inp: FactInput): Fact[] {
     if (spring > 0 && fall > 0) facts.push({ id: 'springfall', value: `${(spring / fall).toFixed(1)}:1`, caption: 'spring : fall',
       text: `Spring outdrew fall ${(spring / fall).toFixed(1)} to 1 in ${year} (${fmt(spring)} vs ${fmt(fall)} birds).` })
     if (attrs) {
-      const pl = countyMetric(ds, counties, f, regionOf, 'public_land_share', year, attrs).values
+      const { num, den, has } = publicLandParts(ds, f, regionOf, year, attrs)
+      const pl = num.map((v, i) => (has[i] && den[i] > 0 ? v / den[i] : NaN))
       const minBirds = 50
       const pi = argmax(pl.map((v, i) => (cur[i] >= minBirds ? v : NaN)))
       if (pi >= 0 && pl[pi] > 0) facts.push({ id: 'public', fips: ds.dict.county[pi], value: pct(pl[pi], 0), caption: 'on public land',
