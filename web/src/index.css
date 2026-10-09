@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Dark "blaze orange on charcoal" theme. System font stack, no web fonts. */
+@theme {
+  --color-bg: #121212;
+  --color-bg-2: #1c1c1e;
+  --color-bg-3: #262628;
+  --color-line: #343436;
+  --color-fg: #f2f2f2;
+  --color-fg-2: #b5b5b8;
+  --color-fg-3: #7d7d82;
+  --color-blaze: #ff6a13;
+  --color-blaze-2: #ff8c42;
+  --color-blaze-dim: #7a3a14;
+  --color-sel: #ffd166;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body, #app { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Tap targets */
+button, a, select, input[type="range"] { min-height: 44px; }
+.tap { min-height: 44px; min-width: 44px; }
+
+/* Charts never shift layout */
+.chart-box { height: 220px; }
+@media (min-width: 1024px) { .chart-box { height: 260px; } }
+
+/* Map */
+.county { fill: var(--color-bg-3); stroke: var(--color-bg); stroke-width: 1; cursor: pointer; transition: fill 120ms linear; }
+.county:hover { stroke: var(--color-fg-2); }
+.county.selected { stroke: var(--color-sel); stroke-width: 2.5; }
+.county.home { stroke: var(--color-blaze-2); stroke-width: 2; }
+.county.dim { opacity: 0.35; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* uPlot overrides for dark theme */
+.u-legend { color: var(--color-fg-2); font-size: 12px; }
+.u-select { background: rgba(255, 106, 19, 0.15); }
