@@ -20,7 +20,7 @@ export function seasonLabel(species: string, year: number): string {
 
 /** Sequential scale for choropleths: one hue, luminance rises monotonically low→high (deep ember → blaze → pale cream), so highs glow on the dark theme,
  *  so low and high never look alike and the ramp reads for every color-vision type. */
-export const SEQ_COLORS = ['#4a1a06', '#8a300a', '#c24a0e', '#f0600f', '#ff8438', '#ffb070', '#ffe2bd']
+export const SEQ_COLORS = ['#4a1a06', '#9a3509', '#e8600f', '#ffa15c', '#ffe2bd']
 /** Diverging scale for change metrics (blue → grey → orange). */
 export const DIV_COLORS = ['#2166ac', '#67a9cf', '#d1e5f0', '#5a5a5e', '#fddbc7', '#ef8a62', '#ff6a13']
 

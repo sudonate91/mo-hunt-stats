@@ -1,4 +1,4 @@
-/** Choropleth color scales: quantile classes, sequential (viridis) or diverging centered on 0. */
+/** Choropleth color scales: quantile classes, sequential (5 single-hue steps) or diverging centered on 0. */
 import type { MetricDef } from '../../data/metrics'
 import { classify, DIV_COLORS, quantileBreaks, SEQ_COLORS } from '../charts/format'
 
@@ -36,10 +36,10 @@ export function makeScale(sets: ArrayLike<number>[], def: MetricDef): ColorScale
       colors.push(...DIV_COLORS.slice(4, 4 + pb.length + 1))
     }
   } else {
-    breaks = uniq(quantileBreaks(v, 7))
+    breaks = uniq(quantileBreaks(v, 5))
     if (breaks.length && breaks[0] <= Math.min(...v)) breaks.shift()
     const k = breaks.length + 1
-    colors = Array.from({ length: k }, (_, i) => SEQ_COLORS[k === 1 ? 3 : Math.round((i * (SEQ_COLORS.length - 1)) / (k - 1))])
+    colors = Array.from({ length: k }, (_, i) => SEQ_COLORS[k === 1 ? 2 : Math.round((i * (SEQ_COLORS.length - 1)) / (k - 1))])
   }
   let min = Infinity, max = -Infinity
   for (const x of v) { if (x < min) min = x; if (x > max) max = x }
