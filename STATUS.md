@@ -1,6 +1,30 @@
 # STATUS
 
-## Phase: 2 (turkey, county dimension, GeoJSON, CWD) — built; moving to phase 3 per user ("keep going until done")
+## Phase: 3–8 built (web app, views, derived metrics, PWA, CI) — final review pass
+
+### Phases 3–8 done (user said "keep going until done", so no per-phase stops after phase 1)
+- `web/`: Vite + Preact + TS strict + Tailwind v4 + uPlot. Signals mirrored to URL params (`view, sp, y, yr, s, p, m, yo, c, r, co, metric, sel, cmp`).
+- Data layer: compact JSON → dictionary-coded typed arrays; masks memoized; county map pre-projected (Albers) to SVG paths
+  by `scripts/build-map.mjs` (no map library).
+- Views: Map (choropleth, year scrubber + play, small multiples, linked trend chart, county card), County page, Ranks
+  (rank change vs last year, sparklines, home county pinned), Trends (up to 5 county overlays, per-sq-mi, index, species compare),
+  Seasons (portion stack, class split, opening-weekend / youth / spring:fall stats), Compare (county or region head-to-head),
+  Records (record book, streaks, jumps/drops, auto fact cards), About.
+- Derived metrics in `src/data/metrics.ts`: per sq mi, change YoY, vs 5-yr avg, hotspot z-score, buck:doe, button share,
+  archery/youth/opening-weekend shares, turkey public-land and crossbow shares, streaks, records.
+- PWA: app shell precached, `/data/*.json` stale-while-revalidate, update toast; share chart as PNG with MDC credit; home county
+  in localStorage (default Perry 29157); dark blaze-orange theme.
+- CI: `.github/workflows/pipeline.yml` scrape → validate → build → bundle budget (`scripts/check-bundle.mjs`, baseline in
+  `web/bundle-baseline.json`) → Lighthouse mobile ≥ 90 → Pages deploy. Weekly Mon Sep–Jan, monthly otherwise.
+- Budget: initial JS 18.8 KB gz (limit 150), CSS 6.3 KB, all lazy JS 120 KB, data ≈ 290 KB gz.
+
+### Known gaps
+- `county.json` `bear_management_zone` / `cwd_zone` are null (zones don't follow county lines; needs a decision).
+- Phone layout stacks map then chart (chart below the fold at 360×740); both are on screen on tablet/desktop.
+- Swipe/pinch and Android share sheet untested on a real device.
+- CWD `year` = permit (fall) year, matched 1:1 to deer season year.
+
+## Phase 2 (turkey, county dimension, GeoJSON, CWD) — done
 
 ### Phase 2 done
 - `scraper/mohunt/turkey.py`: 12 pages (2015–2026; 2026 is spring only). Portions `spring_youth`, `spring`, `fall_firearms`,
@@ -58,10 +82,10 @@
 | 2023–2025 | preceding `<h3>`/`<h2>` | last | commas |
 
 ### Next
-- Phase 3: Vite + Preact + TS app in web/ with Tailwind; filter bar in a bottom sheet synced to URL params.
+- Push to GitHub, enable Pages (source: GitHub Actions), watch the first pipeline run.
 
 ### Model escalations
 - None. Main session is Fable (the session the user started); it did the scraper build directly instead of spawning an
   Opus builder, since the parser needed iterative inspection of 11 page layouts. Haiku built the first FIPS table but got
   codes wrong (McDonald, St. Louis, missing Douglas); replaced by a deterministic build from the Census code file.
-  Sonnet wrote the pytest suites. Opus built county_dim.py and cwd.py (pipeline code, per the table).
+  Sonnet wrote the pytest suites. Opus built county_dim.py, cwd.py and all web views (3 parallel builders). Sonnet reviewed the web app.

@@ -70,6 +70,10 @@ export function Shell({ children, title }: { children: ComponentChildren; title:
         <span class="font-bold text-blaze tracking-tight">MO Hunt Stats</span>
         <span class="text-fg-3 text-sm truncate">{title}</span>
         <span class="ml-auto hidden sm:inline text-xs text-fg-3">Data: Missouri Dept. of Conservation</span>
+        <button type="button" class={`tap -mr-2 ml-auto sm:ml-0 flex items-center justify-center rounded-lg ${view.value === 'about' ? 'text-blaze' : 'text-fg-2 hover:text-fg'}`}
+          onClick={() => (view.value = 'about')} aria-label="About and data sources" title="About">
+          <Icon name="about" />
+        </button>
       </header>
       <div class="flex-1 flex min-h-0">
         <Sidebar />

@@ -4,6 +4,7 @@ import { CLASS_LABEL, CLASS_ORDER, PORTION_LABEL, PORTION_ORDER, SUBTOTAL_PORTIO
 import type { Species } from '../data/types'
 import { ds, regions } from '../state/data'
 import { MAX_YEAR, MIN_YEAR, activeFilterCount, filter, setFilter, sheetOpen, year } from '../state/filters'
+import { HomeCountyPicker } from './HomeCountyPicker'
 
 function Chip({ on, onClick, children, title }: { on: boolean; onClick: () => void; children: preact.ComponentChildren; title?: string }) {
   return (
@@ -41,6 +42,7 @@ export function FilterControls() {
   const portions = PORTION_ORDER[sp].filter((p) => available.has(p) && (showSub.value || !SUBTOTAL_PORTIONS.has(p) || f.portions.includes(p)))
   return (
     <div class="text-fg">
+      <HomeCountyPicker compact />
       <Section label="Species">
         {(['deer', 'turkey'] as Species[]).map((s) => (
           <Chip key={s} on={sp === s} onClick={() => setFilter({ species: s })}>{s === 'deer' ? 'Deer' : 'Turkey'}</Chip>

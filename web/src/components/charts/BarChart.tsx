@@ -1,6 +1,7 @@
 /** Hand-built SVG bars: horizontal ranked bars or stacked bars by category. Tap/hover tooltip, table toggle. */
 import { useState } from 'preact/hooks'
 import { Credit } from '../Shell'
+import { ShareButton } from '../ShareButton'
 import { DataTable } from './DataTable'
 import { fmt } from './format'
 import { SERIES_COLORS } from './LineChart'
@@ -8,8 +9,8 @@ import { SERIES_COLORS } from './LineChart'
 export interface Bar { label: string; value: number; id?: string; highlight?: boolean; sub?: string }
 
 /** Horizontal ranked bars, e.g. leaderboard or portion mix. */
-export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id }:
-  { bars: Bar[]; units?: string; title?: string; onSelect?: (id: string) => void; maxBars?: number; id?: string }) {
+export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id, format = fmt }:
+  { bars: Bar[]; units?: string; title?: string; onSelect?: (id: string) => void; maxBars?: number; id?: string; format?: (v: number) => string }) {
   const [table, setTable] = useState(false)
   const shown = bars.slice(0, maxBars)
   const max = Math.max(1, ...shown.map((b) => b.value))
@@ -22,9 +23,10 @@ export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id }:
         <button type="button" class="text-xs text-fg-3 underline min-h-[32px] ml-auto" onClick={() => setTable(!table)} aria-pressed={table}>
           {table ? 'show chart' : 'show as table'}
         </button>
+        {id && <ShareButton target={id} />}
       </div>
       {table ? (
-        <DataTable columns={['#', 'Name', units ?? 'Value']} rows={shown.map((b, i) => [i + 1, b.label, fmt(b.value)])} />
+        <DataTable columns={['#', 'Name', units ?? 'Value']} rows={shown.map((b, i) => [i + 1, b.label, format(b.value)])} />
       ) : (
         <svg viewBox={`0 0 400 ${h}`} class="w-full" style={{ height: `${h}px` }} role="img" aria-label={title}>
           {shown.map((b, i) => {
@@ -32,11 +34,11 @@ export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id }:
             return (
               <g key={b.id ?? b.label} transform={`translate(0,${i * rowH + 2})`} class={onSelect ? 'cursor-pointer' : ''}
                 onClick={() => b.id && onSelect?.(b.id)}>
-                <title>{`${b.label}: ${fmt(b.value)}${b.sub ? ` (${b.sub})` : ''}`}</title>
+                <title>{`${b.label}: ${format(b.value)}${b.sub ? ` (${b.sub})` : ''}`}</title>
                 <rect x="0" y="0" width="400" height={rowH - 2} fill="transparent" />
                 <text x={labelW - 6} y={rowH / 2 + 3} text-anchor="end" font-size="12" fill={b.highlight ? '#ffd166' : '#b5b5b8'}>{b.label}</text>
                 <rect x={labelW} y="4" width={Math.max(1, w)} height={rowH - 10} rx="3" fill={b.highlight ? '#ffd166' : '#ff6a13'} />
-                <text x={labelW + w + 6} y={rowH / 2 + 3} font-size="12" fill="#f2f2f2">{fmt(b.value)}{b.sub ? <tspan fill="#7d7d82"> {b.sub}</tspan> : null}</text>
+                <text x={labelW + w + 6} y={rowH / 2 + 3} font-size="12" fill="#f2f2f2">{format(b.value)}{b.sub ? <tspan fill="#7d7d82"> {b.sub}</tspan> : null}</text>
               </g>
             )
           })}
@@ -59,7 +61,8 @@ export function StackedBarChart({ groups, categories, units, title, colors, id, 
   const W = 400, H = height, padL = 44, padB = 22, padT = 8
   const bw = (W - padL - 8) / groups.length
   const y = (v: number) => padT + (H - padT - padB) * (1 - v / max)
-  const col = (i: number) => (colors ?? SERIES_COLORS)[i % SERIES_COLORS.length]
+  const pal = colors ?? SERIES_COLORS
+  const col = (i: number) => pal[i % pal.length]
   return (
     <figure class="m-0" id={id} data-share-title={title}>
       <div class="flex items-center justify-between">
@@ -67,6 +70,7 @@ export function StackedBarChart({ groups, categories, units, title, colors, id, 
         <button type="button" class="text-xs text-fg-3 underline min-h-[32px] ml-auto" onClick={() => setTable(!table)} aria-pressed={table}>
           {table ? 'show chart' : 'show as table'}
         </button>
+        {id && <ShareButton target={id} />}
       </div>
       {table ? (
         <DataTable columns={['Group', ...categories.map((c) => c.label), 'Total']}
