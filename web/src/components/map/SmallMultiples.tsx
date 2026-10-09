@@ -4,11 +4,13 @@ import type { MetricDef } from '../../data/metrics'
 import { Choropleth } from '../Choropleth'
 import { seasonLabel } from '../charts/format'
 import { MapLegend } from './Legend'
+import { OverlayLegend, type OverlayLayers } from './Overlays'
 import { makeScale } from './scale'
 
-export function SmallMultiples({ years, values, def, species, current, onYear, onSelect, selected, homeCounty, region }: {
+export function SmallMultiples({ years, values, def, species, current, onYear, onSelect, selected, homeCounty, region, overlays }: {
   years: number[]; values: Float64Array[]; def: MetricDef; species: string; current: number
   onYear: (y: number) => void; onSelect: (fips: string) => void; selected: string; homeCounty: string; region: string
+  overlays?: OverlayLayers | null
 }) {
   const scale = useMemo(() => makeScale(values, def), [values, def])
   return (
@@ -21,11 +23,12 @@ export function SmallMultiples({ years, values, def, species, current, onYear, o
               {seasonLabel(species, y)}
             </button>
             <Choropleth mini legend={false} values={values[i]} def={def} scale={scale} onSelect={onSelect} selected={selected}
-              homeCounty={homeCounty} dimOutsideRegion={region} label={`${def.label}, ${seasonLabel(species, y)}`} />
+              homeCounty={homeCounty} dimOutsideRegion={region} label={`${def.label}, ${seasonLabel(species, y)}`} overlays={overlays} />
           </li>
         ))}
       </ul>
       <MapLegend scale={scale} def={def} />
+      <OverlayLegend />
     </div>
   )
 }

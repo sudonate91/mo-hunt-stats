@@ -59,6 +59,7 @@ jobs:
           if [ "${{ steps.when.outputs.refresh }}" = "true" ]; then
             python -m mohunt.build --refresh
             python -m mohunt.county_dim
+            python -m mohunt.overlays
             python -m mohunt.cwd --refresh
           else
             python -m mohunt.build

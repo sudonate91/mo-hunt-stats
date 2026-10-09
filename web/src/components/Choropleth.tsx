@@ -10,6 +10,7 @@ import { formatMetric, type MetricDef } from '../data/metrics'
 import map from '../generated/map.json'
 import { ds, regionOf } from '../state/data'
 import { MapLegend } from './map/Legend'
+import { MapOverlays, type OverlayLayers } from './map/Overlays'
 import { makeScale, type ColorScale } from './map/scale'
 import { MapTooltip, type HoverState } from './map/Tooltip'
 
@@ -50,11 +51,13 @@ export interface ChoroplethProps {
   mini?: boolean // small multiple: no legend, tooltip, labels or tab stops
   legend?: boolean
   label?: string
+  overlays?: OverlayLayers | null // active geographic overlays, drawn above counties and below outlines
 }
 
-export function Choropleth({ values, def, onSelect, selected = '', homeCounty = '', dimOutsideRegion = '', scale, mini = false, legend = true, label }: ChoroplethProps) {
+export function Choropleth({ values, def, onSelect, selected = '', homeCounty = '', dimOutsideRegion = '', scale, mini = false, legend = true, label, overlays }: ChoroplethProps) {
   const hover = useSignal<HoverState | null>(null)
-  const hatch = `nodata-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const hatch = `nodata-${uid}`
   const order = ds.value?.dict.county
   const idx = useMemo(() => new Map((order ?? []).map((f, i) => [f, i])), [order])
   const sc = useMemo(() => scale ?? makeScale([values], def), [scale, values, def])
@@ -78,6 +81,9 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
         tabindex={mini ? undefined : -1} role={mini ? undefined : 'button'} aria-label={mini ? undefined : describe(fips)} aria-pressed={mini ? undefined : fips === selected} />
     )
   }), [values, sc, selected, homeCounty, dimOutsideRegion, inRegion, idx, mini, hatch, def])
+
+  // Same vnode between renders => Preact skips re-diffing the (large) overlay group on filter changes.
+  const overlayNode = useMemo(() => overlays && <MapOverlays layers={overlays} id={uid} mini={mini} />, [overlays, uid, mini])
 
   const fipsOf = (e: Event) => (e.target as Element | null)?.getAttribute?.('data-fips') ?? ''
 
@@ -149,6 +155,7 @@ export function Choropleth({ values, def, onSelect, selected = '', homeCounty = 
             onPointerDown={mini ? undefined : (e) => { if (e.pointerType !== 'mouse') showTip(e) }}>
             {paths}
           </g>
+          {overlayNode}
           {homeCounty && homeCounty !== selected && outline(homeCounty, 'home')}
           {selected && outline(selected, 'selected')}
           {focusFips && outline(focusFips, 'focus')}

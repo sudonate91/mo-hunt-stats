@@ -3,7 +3,7 @@
  *
  * URL params: view, sp (species), y (yearFrom-yearTo), yr (single year for map/leaderboard), s (season),
  * p (portions, comma), m (method), yo (youth y/n), c (classes, comma), r (region), co (selected counties, comma),
- * metric, cmp (head-to-head pair "a,b").
+ * metric, cmp (head-to-head pair "a,b"), ov (map overlays, comma: rivers, lakes, eco, roads, public).
  */
 import { computed, effect, signal } from '@preact/signals'
 import type { Filter } from '../data/query'
@@ -68,6 +68,13 @@ export const selected = signal<string>('') // selected county fips (linked selec
 export const compare = signal<[string, string]>(['', ''])
 export const sheetOpen = signal(false)
 
+/** Map overlay layers (ids match public/data/overlays.json) and their short URL tokens. */
+export type OverlayId = 'rivers' | 'lakes' | 'ecoregions' | 'interstates' | 'public_land'
+export const OVERLAY_TOKENS: Record<OverlayId, string> = {
+  rivers: 'rivers', lakes: 'lakes', ecoregions: 'eco', interstates: 'roads', public_land: 'public',
+}
+export const overlays = signal<OverlayId[]>([])
+
 /** No default home county: each visitor picks their own, stored per device in localStorage. */
 export const DEFAULT_HOME = ''
 export const homeCounty = signal<string>((() => { try { return localStorage.getItem('homeCounty') || DEFAULT_HOME } catch { return DEFAULT_HOME } })())
@@ -126,6 +133,8 @@ export function readUrl() {
   const cmp = list(q.get('cmp'))
   const okCmp = (v: string | undefined) => (v && (fips(v) || /^region:[A-Za-z. ]{1,30}$/.test(v)) ? v : '')
   compare.value = [okCmp(cmp[0]), okCmp(cmp[1])]
+  const ov = new Set(list(q.get('ov')))
+  overlays.value = (Object.keys(OVERLAY_TOKENS) as OverlayId[]).filter((id) => ov.has(OVERLAY_TOKENS[id]))
 }
 
 export function toUrl(): string {
@@ -145,6 +154,7 @@ export function toUrl(): string {
   if (metric.value !== 'count') q.set('metric', metric.value)
   if (selected.value) q.set('sel', selected.value)
   if (compare.value[0] || compare.value[1]) q.set('cmp', compare.value.join(','))
+  if (overlays.value.length) q.set('ov', overlays.value.map((id) => OVERLAY_TOKENS[id]).join(','))
   const s = q.toString()
   return location.pathname + (s ? `?${s}` : '')
 }

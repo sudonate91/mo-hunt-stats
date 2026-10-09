@@ -44,6 +44,9 @@
   Note: MDC places Crawford and Washington in the St. Louis region. `bear_management_zone` / `cwd_zone` are null (TODO).
 - `scraper/mohunt/cwd.py` → `data/cwd.json`: county × year 2016–2026 (2026 in progress) from
   CWD_Fall_Reporting_Dashboard layers 28/29 with sex/age splits; cross-checked against per-sample counts in layers 26/27.
+- `scraper/mohunt/overlays.py` → `data/overlays.geojson` (232 KB, budget 250 KB): rivers (41, all 11 wanted rivers), lakes (20),
+  EPA L3 ecoregions (6), interstates (25 routes), public land (196 MDC areas ≥ 1,000 ac + Mark Twain NF blocks ≥ 1,000 ac).
+  Web: `scripts/build-map.mjs` projects it to `public/data/overlays.json`; toggled from the map's Overlays chips (`ov=` URL param).
 - Output budget: all JSON ≈ 290 KB gzipped (deer 155, turkey 76, cwd 23, geojson 24).
 
 ### Turkey page defects handled (pinned in `validate.ERRATA` / `turkey.COLUMN_SWAPS`)

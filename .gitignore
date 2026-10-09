@@ -4,3 +4,5 @@ __pycache__/
 web/node_modules/
 web/dist/
 .venv/
+# overlay source downloads (re-fetched by python -m mohunt.overlays; TIGER roads alone is 38 MB)
+data/raw/overlays/

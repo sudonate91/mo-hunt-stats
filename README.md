@@ -11,6 +11,7 @@ pip install -r requirements.txt
 python -m mohunt.build            # deer + turkey: parse cached pages, validate, write data/harvest.*
 python -m mohunt.county_dim       # data/county.json + data/counties.geojson (Census + MDC regions)
 python -m mohunt.cwd              # data/cwd.json from MDC ArcGIS
+python -m mohunt.overlays         # data/overlays.geojson: rivers, lakes, ecoregions, interstates, public land
 python -m mohunt.build --refresh  # re-fetch MDC pages (2 s between requests, identifying user-agent)
 python -m pytest -q
 ```
@@ -80,6 +81,22 @@ Per county × season × portion: `public_land` and `crossbow` counts (subsets of
 
 115 county polygons (Census cartographic boundary 2023, 1:500k, simplified), properties `fips`, `name`.
 
+### `data/overlays.geojson`
+
+Map overlays, one FeatureCollection, every feature `{layer, name}`; clipped to the Missouri bbox (lon −95.9…−88.9,
+lat 35.9…40.7), coordinates to 3 decimals, simplified so the file stays ≤ 250 KB (the build drops a layer, last first,
+rather than exceed it). Raw downloads are cached in `data/raw/overlays/` (git-ignored; the TIGER file is 38 MB).
+
+| layer | geometry | source | license |
+|---|---|---|---|
+| `rivers` | (Multi)LineString, one per name | Natural Earth 10m `rivers_lake_centerlines` + `rivers_north_america` | public domain |
+| `lakes` | (Multi)Polygon | Natural Earth 10m `lakes` + `lakes_north_america` | public domain |
+| `ecoregions` | (Multi)Polygon, one per Level III name | US EPA Level III ecoregions of Missouri (`mo_eco_l3`, Albers → WGS84) | US government work, public domain |
+| `interstates` | (Multi)LineString, one per route (`I-70`…) | Census TIGER/Line 2023 primary roads, `RTTYP = 'I'` | US government work, public domain |
+| `public_land` | (Multi)Polygon | MDC conservation areas ≥ 1,000 acres (MDC ArcGIS `MDC_Administrative_Areas/5`); Mark Twain National Forest ownership blocks ≥ 1,000 acres (USFS EDW `BasicOwnership`) | MDC data per MDC's terms of use (attribution: MDC); USFS public domain |
+
+Overlays are for eyeballing geography against harvest; they are generalized (~0.004–0.01°) and not for navigation.
+
 ### `data/cwd.json`
 
 `{source, fetched, current_season, rows:[{county_fips, year, samples, positives, splits:{by_sex, by_age}}]}` from MDC's
@@ -101,3 +118,5 @@ Built from the Census 2020 county code file; Ste. Genevieve is the one even-numb
 ## Credits
 
 All harvest data: Missouri Department of Conservation. County codes and boundaries: US Census Bureau.
+Map overlays: Natural Earth (rivers, lakes), US EPA (ecoregions), US Census TIGER/Line (interstates),
+MDC and USDA Forest Service (public land).

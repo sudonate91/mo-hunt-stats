@@ -7,6 +7,7 @@ import { LineChart, type LineSeries } from '../components/charts/LineChart'
 import { Icon } from '../components/Icon'
 import { ShareButton } from '../components/ShareButton'
 import { applicableMetric, clampYear, metricsFor, yearsInRange } from '../components/map/derive'
+import { OverlayChips, OverlayLegend, useActiveOverlays } from '../components/map/Overlays'
 import { SmallMultiples } from '../components/map/SmallMultiples'
 import { StatsStrip, type StripData } from '../components/map/StatsStrip'
 import { YearScrubber } from '../components/map/YearScrubber'
@@ -36,6 +37,7 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
   const [multiples, setMultiples] = useState(false)
   const [cardOpen, setCardOpen] = useState(true)
   const season = seasonLabel(sp, y)
+  const ov = useActiveOverlays()
   const scope = f.region ? `${f.region} region` : 'Statewide'
 
   const res = useMemo(() => countyMetric(d, cs, f, rOf, mId, y, at), [d, cs, f, rOf, mId, y, at])
@@ -121,17 +123,19 @@ function MapViewInner({ d, cs, m }: { d: Dataset; cs: County[]; m: Uint8Array })
             <Icon name="seasons" size={18} /><span class="hidden sm:inline">Every season</span><span class="sm:hidden">All</span>
           </button>
         </div>
+        <OverlayChips />
         <StatsStrip s={strip} def={def} onTop={() => topFips && (selected.value = topFips)} />
         <YearScrubber years={years} value={y} onChange={setYear} species={sp} />
         {multi ? (
           <SmallMultiples years={years} values={multi} def={def} species={sp} current={y} onYear={setYear}
-            onSelect={select} selected={sel} homeCounty={home} region={f.region} />
+            onSelect={select} selected={sel} homeCounty={home} region={f.region} overlays={ov} />
         ) : (
           <div onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => (start.current = null)} class="max-w-[760px] mx-auto">
             <h2 class="sr-only">{def.label} by county, {season}</h2>
             <figure id="map-choropleth" class="m-0" data-share-title={`${def.label} by county · ${scope} · ${season}`}>
               <Choropleth values={res.values} def={def} onSelect={select} selected={sel} homeCounty={home} dimOutsideRegion={f.region}
-                label={`${def.label} by county, ${season}. ${def.units}.`} />
+                label={`${def.label} by county, ${season}. ${def.units}.`} overlays={ov} />
+              <OverlayLegend />
             </figure>
           </div>
         )}
