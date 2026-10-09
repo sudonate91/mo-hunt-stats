@@ -161,7 +161,8 @@ const map = {
 writeFileSync(join(outGenerated, 'map.json'), JSON.stringify(map))
 console.log(`map.json: ${Object.keys(paths).length} counties, viewBox ${map.viewBox}, ${(statSync(join(outGenerated, 'map.json')).size / 1024).toFixed(0)} KB`)
 
-for (const f of ['harvest_deer.json', 'harvest_turkey.json', 'turkey_attributes.json', 'cwd.json', 'county.json']) {
-  copyFileSync(join(dataDir, f), join(outPublic, f))
+for (const f of ['harvest_deer.json', 'harvest_turkey.json', 'turkey_attributes.json', 'cwd.json', 'county.json', 'effort.json']) {
+  if (existsSync(join(dataDir, f))) copyFileSync(join(dataDir, f), join(outPublic, f))
+  else console.warn(`${f} missing in data/ (skipped)`)
 }
 console.log('copied data JSON to public/data')

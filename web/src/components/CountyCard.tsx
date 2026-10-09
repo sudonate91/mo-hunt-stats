@@ -1,16 +1,17 @@
 /** County dashboard for one county: ranks, trend, portion mix, species shares, CWD, neighbors, top-10 streak. */
 import { useMemo } from 'preact/hooks'
-import { countyMetric, countySeries, rankMetric, streak } from '../data/metrics'
+import { countyMetric, countySeries, effortFor, effortYearRange, rankMetric, streak } from '../data/metrics'
 import { PORTION_LABEL, SUBTOTAL_PORTIONS } from '../data/query'
-import { attrs, counties, countyByFips, cwd, ds, regionOf } from '../state/data'
+import { attrs, counties, countyByFips, cwd, ds, effort, regionOf } from '../state/data'
 import { filter, homeCounty, metric, selected, view, year } from '../state/filters'
 import { HBarChart } from './charts/BarChart'
 import { seasonLabel } from './charts/format'
 import { LineChart, type LineSeries } from './charts/LineChart'
-import { CwdBlock, DeerShares, Neighbors, RankBlock, Section, TurkeyShares, type NeighborRow } from './CountyCardSections'
+import { CwdBlock, DeerShares, Neighbors, PressureBlock, RankBlock, Section, TurkeyShares, type NeighborRow, type Pressure } from './CountyCardSections'
 import { Icon } from './Icon'
 import { applicableMetric, clampYear, countyBreakdown, cwdFor, nearest, turkeyShares, yearsInRange } from './map/derive'
 
+const dec1 = (n: number) => (Number.isFinite(n) ? n.toFixed(1) : '–')
 const select = (f: string) => { selected.value = f }
 const desc = (a: number, b: number) => (Number.isFinite(b) ? b : -Infinity) - (Number.isFinite(a) ? a : -Infinity)
 
@@ -77,6 +78,46 @@ export function CountyCard({ fips, full = false, onClose }: { fips: string; full
     return { bars, cls, tk }
   }, [d, f, rOf, ci, y, sp, at, fips])
 
+  const eff = effort.value
+  const pressure = useMemo(() => {
+    if (sp !== 'deer' || !d || !cs || ci < 0 || !c || !eff) return null
+    const years = effortYearRange()
+    const published = years.includes(y)
+    const row = effortFor(y, fips)
+    if (published && !row) return null // county not in MDC's regional tables (St. Louis City)
+    const nRanked = (r: Int32Array) => r.reduce((n, v) => n + (v > 0 ? 1 : 0), 0)
+    const g = { ...f, region: '' }
+    let p: Pressure = { published, firearms: null, archery: null, hunters: NaN, deerPerHunter: NaN, rankDph: [0, 0], rankDensity: [0, 0], tripsFirearms: null, tripsArchery: null }
+    if (row) {
+      const dph = countyMetric(d, cs, g, rOf, 'deer_per_hunter', y, at)
+      const dens = countyMetric(d, cs, g, rOf, 'hunters_per_sqmi', y, at)
+      const rd = rankMetric(dph.values, dph.def), rh = rankMetric(dens.values, dens.def)
+      const fh = row.firearms_hunters_per_sqmi, ah = row.archery_hunters_per_sqmi
+      const h = fh != null && ah != null ? (fh + ah) * c.land_area_sq_mi : NaN
+      p = {
+        published, firearms: fh, archery: ah,
+        hunters: Number.isFinite(h) ? Math.round(h / 100) * 100 : NaN,
+        deerPerHunter: dph.values[ci], rankDph: [rd[ci], nRanked(rd)], rankDensity: [rh[ci], nRanked(rh)],
+        tripsFirearms: row.trips_per_kill_firearms, tripsArchery: row.trips_per_kill_archery,
+      }
+    }
+    // Trend of combined density across effort years that publish it, vs the state average per county.
+    const dens = (r: { firearms_hunters_per_sqmi: number | null; archery_hunters_per_sqmi: number | null } | undefined) =>
+      r && r.firearms_hunters_per_sqmi != null && r.archery_hunters_per_sqmi != null ? r.firearms_hunters_per_sqmi + r.archery_hunters_per_sqmi : null
+    const x: number[] = [], self: (number | null)[] = [], avg: (number | null)[] = []
+    for (const yy of years) {
+      let s = 0, n = 0
+      for (const fp of d.dict.county) { const v = dens(effortFor(yy, fp)); if (v != null && Number.isFinite(v)) { s += v; n++ } }
+      if (!n) continue
+      x.push(yy); self.push(dens(effortFor(yy, fips))); avg.push(Math.round((s / n) * 10) / 10)
+    }
+    const trend: LineSeries[] = [
+      { label: c.name, values: self, color: '#ffd166' },
+      { label: 'State avg per county', values: avg, color: '#b5b5b8', dash: [6, 4] },
+    ]
+    return { p, x, trend }
+  }, [sp, d, cs, ci, c, eff, y, fips, f, rOf, at])
+
   const cw = useMemo(() => (sp === 'deer' ? cwdFor(cwdData, fips, y) : null), [sp, fips, y, cwdData])
 
   if (!c || !d || !core || !mix) return <div class="p-3 text-sm text-fg-3">No data for this county.</div>
@@ -123,6 +164,12 @@ export function CountyCard({ fips, full = false, onClose }: { fips: string; full
           </Section>
           {cls && <DeerShares bucks={cls.get('antlered_buck') ?? 0} does={cls.get('doe') ?? 0} buttons={cls.get('button_buck') ?? 0} total={total} season={season} />}
           {mix.tk && <TurkeyShares publicLand={mix.tk.publicLand} crossbow={mix.tk.crossbow} season={season} />}
+          {pressure && (
+            <PressureBlock p={pressure.p} season={season} chart={pressure.x.length > 1 && (
+              <LineChart id="county-pressure" x={pressure.x} series={pressure.trend} height={140} yMin={0}
+                units="Firearms + archery hunters per sq mi" title={`${c.name} hunters per sq mi`} format={dec1} />
+            )} />
+          )}
           {sp === 'deer' && <CwdBlock stat={cw} season={String(y)} />}
           <Neighbors rows={core.neighbors} def={core.res.def} onSelect={select} season={season} />
         </div>

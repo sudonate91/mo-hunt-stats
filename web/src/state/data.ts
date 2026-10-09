@@ -1,8 +1,9 @@
 /** Loaded datasets as signals; views read `ds.value`, `counties.value` and never fetch themselves. */
 import { computed, effect, signal } from '@preact/signals'
-import { loadAttributes, loadCounties, loadCwd, loadDataset } from '../data/load'
+import { loadAttributes, loadCounties, loadCwd, loadDataset, loadEffort } from '../data/load'
+import { setEffort } from '../data/metrics'
 import { mask } from '../data/query'
-import type { Attributes, County, CwdJson, Dataset } from '../data/types'
+import type { Attributes, County, CwdJson, Dataset, EffortJson } from '../data/types'
 import { filter, registerYears } from './filters'
 
 export const counties = signal<County[] | null>(null)
@@ -10,6 +11,7 @@ export const ds = signal<Dataset | null>(null)
 export const attrs = signal<Attributes | null>(null)
 export const cwd = signal<CwdJson | null>(null)
 export const loadError = signal<string>('')
+export const effort = signal<EffortJson | null>(null)
 
 export const countyByFips = computed(() => new Map((counties.value ?? []).map((c) => [c.fips, c])))
 export const regionOf = computed(() => {
@@ -28,7 +30,10 @@ export const currentMask = computed(() => {
 })
 
 export function startDataLoading() {
-  loadCounties().then((c) => (counties.value = c)).catch((e) => (loadError.value = String(e)))
+  // Effort (hunter density) is registered before counties resolve so every metric computation can see it.
+  Promise.all([loadCounties(), loadEffort().catch(() => null)])
+    .then(([c, e]) => { setEffort(e); effort.value = e; counties.value = c })
+    .catch((e) => (loadError.value = String(e)))
   loadCwd().then((c) => (cwd.value = c)).catch(() => { /* CWD is optional */ })
   effect(() => {
     const sp = filter.value.species

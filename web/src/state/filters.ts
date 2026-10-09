@@ -21,6 +21,7 @@ export const VIEWS: { id: View; label: string }[] = [
 
 export type Metric = 'count' | 'per_sqmi' | 'change_yoy' | 'vs_5yr' | 'buck_doe' | 'button_share' | 'zscore'
   | 'archery_share' | 'youth_share' | 'opening_share' | 'public_land_share' | 'crossbow_share'
+  | 'hunters_per_sqmi' | 'firearms_hunters_per_sqmi' | 'archery_hunters_per_sqmi' | 'deer_per_hunter' | 'trips_per_kill'
 
 export const MIN_YEAR: Record<Species, number> = { deer: 2015, turkey: 2015 }
 /** Latest season per species. Seeded with the known values and updated from the loaded data (see state/data.ts). */
@@ -30,8 +31,10 @@ const SEASONS = new Set(['spring', 'fall'])
 const METHODS = new Set(['firearm', 'archery', 'mixed'])
 const VIEW_IDS = new Set<string>(['map', 'county', 'board', 'trends', 'seasons', 'h2h', 'records', 'about'])
 export const METRIC_IDS: Metric[] = ['count', 'per_sqmi', 'change_yoy', 'vs_5yr', 'buck_doe', 'button_share', 'zscore',
-  'archery_share', 'youth_share', 'opening_share', 'public_land_share', 'crossbow_share']
-const DEER_ONLY: Metric[] = ['buck_doe', 'button_share', 'archery_share', 'youth_share', 'opening_share']
+  'archery_share', 'youth_share', 'opening_share', 'public_land_share', 'crossbow_share',
+  'hunters_per_sqmi', 'firearms_hunters_per_sqmi', 'archery_hunters_per_sqmi', 'deer_per_hunter', 'trips_per_kill']
+const DEER_ONLY: Metric[] = ['buck_doe', 'button_share', 'archery_share', 'youth_share', 'opening_share',
+  'hunters_per_sqmi', 'firearms_hunters_per_sqmi', 'archery_hunters_per_sqmi', 'deer_per_hunter', 'trips_per_kill']
 const TURKEY_ONLY: Metric[] = ['public_land_share', 'crossbow_share']
 
 /** The metric if it applies to the species, else 'count'. */

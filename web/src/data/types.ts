@@ -80,3 +80,31 @@ export interface Attributes {
   // turkey public-land / crossbow counts keyed `${year}:${portion}:${fips}`
   byKey: Map<string, { public_land: number; crossbow: number }>
 }
+
+/** data/effort.json: hunter density and effort per county from MDC's annual Deer Season Summary & Population Status Reports. */
+export interface EffortRow {
+  county_fips: string
+  year: number
+  harvest: number | null
+  harvest_per_sqmi: number | null
+  firearms_hunters_per_sqmi: number | null
+  archery_hunters_per_sqmi: number | null
+  trips_per_kill_firearms: number | null
+  trips_per_kill_archery: number | null
+  public_land_acres: number | null
+  public_areas: number | null
+}
+export interface PermitRow { year: number; permit_type: string; permit_label: string; permits_issued: number | null; deer_harvested: number | null; source_report?: number }
+export interface HunterRow {
+  year: number; method: 'archery' | 'firearms' | 'combined'; hunters_total: number | null
+  hunters_0_deer: number | null; hunters_1_deer: number | null; hunters_2_deer: number | null; hunters_3plus_deer: number | null
+}
+export interface EffortJson {
+  source: string
+  reports: Record<string, string>
+  fetched: string
+  notes: string[]
+  county_effort: EffortRow[]
+  statewide_permits: PermitRow[]
+  statewide_hunters: HunterRow[]
+}

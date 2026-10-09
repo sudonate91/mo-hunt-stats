@@ -4,7 +4,7 @@
  */
 import type { Metric } from '../state/filters'
 import { comparableFilter, mask, maskYear, sumByCounty, sumByCountyYear, type Filter } from './query'
-import type { Attributes, County, Dataset, Species } from './types'
+import type { Attributes, County, Dataset, EffortJson, EffortRow, Species } from './types'
 
 export interface MetricDef {
   id: Metric
@@ -26,6 +26,11 @@ export const METRICS: MetricDef[] = [
   { id: 'archery_share', label: 'Archery share', units: '% of season harvest taken by archery', diverging: false, species: ['deer'], format: 'pct' },
   { id: 'youth_share', label: 'Youth share', units: '% of firearms harvest taken in youth portions', diverging: false, species: ['deer'], format: 'pct' },
   { id: 'opening_share', label: 'Opening weekend share', units: '% of the November portion taken opening weekend', diverging: false, species: ['deer'], format: 'pct' },
+  { id: 'hunters_per_sqmi', label: 'Hunters per sq mi', units: 'Firearms + archery hunters per square mile (MDC status report)', diverging: false, species: ['deer'], format: 'dec1' },
+  { id: 'firearms_hunters_per_sqmi', label: 'Firearms hunters per sq mi', units: 'Firearms hunters per square mile (MDC status report)', diverging: false, species: ['deer'], format: 'dec1' },
+  { id: 'archery_hunters_per_sqmi', label: 'Archery hunters per sq mi', units: 'Archery hunters per square mile (MDC status report)', diverging: false, species: ['deer'], format: 'dec1' },
+  { id: 'deer_per_hunter', label: 'Deer per hunter', units: 'Deer checked per hunter-season (harvest / hunters who hunted the county)', diverging: false, species: ['deer'], format: 'dec2' },
+  { id: 'trips_per_kill', label: 'Trips per kill (firearms)', units: 'Hunter trips per deer taken, firearms (MDC status report; lower = easier)', diverging: false, species: ['deer'], format: 'dec1' },
   { id: 'public_land_share', label: 'Public land share', units: '% of harvest taken on public land', diverging: false, species: ['turkey'], format: 'pct' },
   { id: 'crossbow_share', label: 'Crossbow share', units: '% of fall archery harvest taken by crossbow', diverging: false, species: ['turkey'], format: 'pct' },
 ]
@@ -46,6 +51,41 @@ export function formatMetric(v: number, def: MetricDef): string {
 }
 
 type RegionOf = (fips: string) => string
+
+// ---- Hunter effort (MDC status reports), registered once at startup by state/data.ts ----
+let effortIndex = new Map<string, EffortRow>() // `${year}:${fips}`
+let effortYears: number[] = []
+export function setEffort(e: EffortJson | null) {
+  effortIndex = new Map()
+  if (e) for (const r of e.county_effort) effortIndex.set(`${r.year}:${r.county_fips}`, r)
+  effortYears = [...new Set((e?.county_effort ?? []).map((r) => r.year))].sort((a, b) => a - b)
+}
+export const effortYearRange = () => effortYears
+export const effortFor = (year: number, fips: string) => effortIndex.get(`${year}:${fips}`)
+export const EFFORT_METRICS = new Set<Metric>(['hunters_per_sqmi', 'firearms_hunters_per_sqmi', 'archery_hunters_per_sqmi', 'deer_per_hunter', 'trips_per_kill'])
+
+function effortMetric(ds: Dataset, counties: County[], metric: Metric, year: number, base: Float64Array): Float64Array {
+  const out = new Float64Array(base.length).fill(NaN)
+  for (let i = 0; i < base.length; i++) {
+    const e = effortFor(year, ds.dict.county[i])
+    if (!e) continue
+    const fh = e.firearms_hunters_per_sqmi, ah = e.archery_hunters_per_sqmi
+    switch (metric) {
+      case 'firearms_hunters_per_sqmi': out[i] = fh ?? NaN; break
+      case 'archery_hunters_per_sqmi': out[i] = ah ?? NaN; break
+      case 'hunters_per_sqmi': out[i] = fh != null && ah != null ? fh + ah : NaN; break
+      case 'trips_per_kill': out[i] = e.trips_per_kill_firearms ?? NaN; break
+      case 'deer_per_hunter': {
+        // hunters who hunted the county = density x land area; harvest is the app's own (current filter) count
+        const hunters = fh != null && ah != null ? (fh + ah) * counties[i].land_area_sq_mi : NaN
+        out[i] = hunters > 0 ? base[i] / hunters : NaN
+        break
+      }
+      default: break
+    }
+  }
+  return out
+}
 
 /** Sum per county for a single year under filter f (with optional overrides of portions/classes/method/youth). */
 function countsFor(ds: Dataset, f: Filter, regionOf: RegionOf, year: number, patch: Partial<Filter> = {}, comparable = false): Float64Array {
@@ -126,6 +166,13 @@ export function countyMetric(
     case 'archery_share': values = div(countsFor(ds, f, regionOf, year, { portions: ['archery'] }), countsFor(ds, f, regionOf, year, { portions: [], method: '' })); break
     case 'youth_share': values = div(countsFor(ds, f, regionOf, year, { portions: [], youth: 'y', method: '' }), countsFor(ds, f, regionOf, year, { portions: [], method: 'firearm', youth: '' })); break
     case 'opening_share': values = div(countsFor(ds, f, regionOf, year, { portions: ['opening_weekend'] }), countsFor(ds, f, regionOf, year, { portions: ['november'] })); break
+    case 'hunters_per_sqmi':
+    case 'firearms_hunters_per_sqmi':
+    case 'archery_hunters_per_sqmi':
+    case 'deer_per_hunter':
+    case 'trips_per_kill':
+      values = effortMetric(ds, counties, metric, year, base)
+      break
     case 'public_land_share':
     case 'crossbow_share': {
       const key = metric === 'public_land_share' ? 'public_land' : 'crossbow'

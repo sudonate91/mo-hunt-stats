@@ -3,7 +3,7 @@
  * query.ts; nothing is hard-coded except sentence templates. Facts that don't apply (no data, 0/0) are skipped.
  */
 import { fmt, pct, seasonLabel } from '../components/charts/format'
-import { countyMetric, countySeries, rankValues, streak } from './metrics'
+import { countyMetric, countySeries, effortFor, effortYearRange, rankValues, streak } from './metrics'
 import { CLASS_LABEL, PORTION_LABEL, mask, maskYear, total, type Filter } from './query'
 import type { Attributes, County, Dataset } from './types'
 
@@ -129,6 +129,33 @@ export function makeFacts(inp: FactInput): Fact[] {
     const second = argmax(dens.map((v, i) => (i === di ? NaN : v)))
     facts.push({ id: 'density', fips: ds.dict.county[di], value: dens[di].toFixed(2), caption: `${animals} / sq mi`,
       text: `${name(di)} took ${dens[di].toFixed(1)} ${animals} per square mile, the most ${scope}${second >= 0 ? `; ${name(second)} was 2nd at ${dens[second].toFixed(1)}` : ''}.` })
+  }
+
+  // Hunting pressure (deer): placed early so it survives the card limit.
+  if (sp === 'deer') {
+    // Latest MDC status-report season at or before this one that publishes hunter density.
+    const hasDensity = (y: number) => ds.dict.county.some((fp) => effortFor(y, fp)?.firearms_hunters_per_sqmi != null)
+    const ey = [...effortYearRange()].reverse().find((y) => y <= year && hasDensity(y))
+    if (ey != null) {
+      const inScope = (fp: string) => !f.region || regionOf(fp) === f.region
+      const hunters = ds.dict.county.map((fp) => {
+        const e = effortFor(ey, fp), area = byFips.get(fp)?.land_area_sq_mi ?? NaN
+        const fh = e?.firearms_hunters_per_sqmi, ah = e?.archery_hunters_per_sqmi
+        const h = fh != null && ah != null && inScope(fp) ? (fh + ah) * area : NaN
+        return Number.isFinite(h) && h > 0 ? Math.round(h / 100) * 100 : NaN
+      })
+      const ti = argmax(hunters)
+      if (ti >= 0) {
+        const other = hi >= 0 && hi !== ti && Number.isFinite(hunters[hi]) ? hi : argmax(hunters.map((v, i) => (i === ti ? NaN : v)))
+        const tail = other < 0 ? '' : other === hi ? `; ${name(other)} had ≈${fmt(hunters[other])}` : `; ${name(other)} was 2nd with ≈${fmt(hunters[other])}`
+        facts.push({ id: 'hunters', fips: ds.dict.county[ti], value: `≈${fmt(hunters[ti])}`, caption: `hunters, ${season(ey)}`,
+          text: `${name(ti)} had ≈${fmt(hunters[ti])} hunters in ${season(ey)}, the most ${scope}${tail}.` })
+      }
+      const dph = countyMetric(ds, counties, { ...f, ...allYears }, regionOf, 'deer_per_hunter', ey).values
+      const pi = argmax(dph)
+      if (pi >= 0 && dph[pi] > 0) facts.push({ id: 'dph', fips: ds.dict.county[pi], value: dph[pi].toFixed(2), caption: 'deer per hunter',
+        text: `Highest deer per hunter ${scope} in ${season(ey)}: ${name(pi)} (${dph[pi].toFixed(2)} deer per hunter-season).` })
+    }
   }
 
   // Longest current top-10 streak (only counties in this year's top 10 can have one)

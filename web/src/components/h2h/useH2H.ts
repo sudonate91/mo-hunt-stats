@@ -1,6 +1,6 @@
 /** Head-to-head computation for two places (county fips or `region:<name>`). */
 import { useMemo } from 'preact/hooks'
-import { countyMetric, countySeries, formatMetric, metricDef } from '../../data/metrics'
+import { countyMetric, countySeries, effortFor, formatMetric, metricDef } from '../../data/metrics'
 import { PORTION_LABEL, filterKey, mask, type Filter } from '../../data/query'
 import type { Dataset } from '../../data/types'
 import type { StackedGroup } from '../charts/BarChart'
@@ -98,6 +98,27 @@ export function useH2H(): H2H | null {
       const does = countySeries(d, { ...full, classes: ['doe'] }, ro)
       const r = two((k) => { const b = at(sumSeries(bucks, places[k].idx), yi), o = at(sumSeries(does, places[k].idx), yi); return o > 0 ? b / o : NaN })
       rows.push({ label: 'Buck : doe', values: r, text: two((k) => (Number.isFinite(r[k]) ? r[k].toFixed(2) : '–')), better: 'high', highlight: met === 'buck_doe' })
+
+      // Hunting pressure (MDC status reports). Regions aggregate as harvest / sum(density x area) over counties MDC reports.
+      const areaOf = new Map(cs.map((c) => [c.fips, c.land_area_sq_mi]))
+      const effortAgg = (p: Place) => {
+        let hunters = 0, area = 0, harvestSum = 0, any = false
+        for (const i of p.idx) {
+          const fp = d.dict.county[i]
+          const e = effortFor(y, fp), ar = areaOf.get(fp) ?? 0
+          const fh = e?.firearms_hunters_per_sqmi, ah = e?.archery_hunters_per_sqmi
+          if (fh == null || ah == null || !(ar > 0)) continue
+          any = true; hunters += (fh + ah) * ar; area += ar; harvestSum += Number.isFinite(col[i]) ? col[i] : 0
+        }
+        return any && area > 0 && hunters > 0 ? { density: hunters / area, dph: harvestSum / hunters } : null
+      }
+      const eff = two((k) => effortAgg(places[k]))
+      if (eff[0] || eff[1]) {
+        const dens = two((k) => eff[k]?.density ?? NaN), dph = two((k) => eff[k]?.dph ?? NaN)
+        const t = (v: number, n: number) => (Number.isFinite(v) ? v.toFixed(n) : '–')
+        rows.push({ label: 'Hunters per sq mi', values: dens, text: two((k) => t(dens[k], 1)), better: null, highlight: met === 'hunters_per_sqmi' })
+        rows.push({ label: 'Deer per hunter', values: dph, text: two((k) => t(dph[k], 2)), better: 'high', highlight: met === 'deer_per_hunter' })
+      }
     } else {
       // Only (portion, county) pairs with attribute rows count, so unreported seasons show '–', not 0%.
       const parts = a && yi >= 0 ? publicLandParts(d, full, ro, y, a) : null
@@ -113,7 +134,7 @@ export function useH2H(): H2H | null {
     rows.push({ label: 'Best season ever', values: two((k) => best[k][0]), text: two((k) => (best[k][0] > 0 ? `${fmt(best[k][0])} (${seasonLabel(sp, best[k][1])})` : '–')), better: 'high' })
 
     // The current map/leaderboard metric when it is not already shown (county-level only).
-    const shown = new Set(['count', 'per_sqmi', 'change_yoy', 'buck_doe', 'public_land_share'])
+    const shown = new Set(['count', 'per_sqmi', 'change_yoy', 'buck_doe', 'public_land_share', ...(rows.some((r) => r.label === 'Deer per hunter') ? ['hunters_per_sqmi', 'deer_per_hunter'] : [])])
     if (!shown.has(met)) {
       const res = countyMetric(d, cs, full, ro, met, y, a)
       const v = two((k) => (places[k].isRegion ? NaN : res.values[places[k].idx[0]]))

@@ -1,6 +1,8 @@
 /** About / data page: sources, what the numbers mean, MDC page defects we correct for, home county, install hint. */
 import type { ComponentChildren } from 'preact'
+import { useState } from 'preact/hooks'
 import { HomeCountyPicker } from '../components/HomeCountyPicker'
+import { effort } from '../state/data'
 
 function Card({ title, children }: { title: string; children: ComponentChildren }) {
   return (
@@ -22,9 +24,72 @@ const SOURCES: { href: string; name: string; what: string }[] = [
     what: 'Spring youth, spring, fall firearms and fall archery turkey harvest by county and bird class, 2015 onward, plus public-land and crossbow counts where MDC prints them.' },
   { href: 'https://gisblue.mdc.mo.gov/arcgis/rest/services/Terrestrial', name: 'MDC ArcGIS: CWD Fall Reporting Dashboard',
     what: 'Chronic wasting disease samples and positives by county and season, with sex and age splits.' },
+  { href: 'https://mdc.mo.gov/sites/default/files/2026-02/2024_pop_status_report.pdf', name: 'MDC Deer Season Summary & Population Status Report (latest: 2024-25)',
+    what: 'Firearms and archery hunters per square mile by county (2020-21 onward), trips per kill (2018-22), and statewide permits issued, deer harvested and hunter success, 2017-18 to 2024-25.' },
   { href: 'https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html', name: 'US Census Bureau',
     what: 'County FIPS codes, land area (for per-square-mile numbers) and cartographic boundary shapes for the map.' },
 ]
+
+const num = (v: number | null) => (v != null && Number.isFinite(v) ? v.toLocaleString('en-US') : '–')
+
+/** Statewide permits issued vs deer harvested per permit type, from MDC's status reports. */
+function PermitsCard() {
+  const e = effort.value
+  const years = e ? [...new Set(e.statewide_permits.map((r) => r.year))].sort((a, b) => b - a) : []
+  const [sel, setSel] = useState<number | null>(null)
+  if (!e || !years.length) return null
+  const y = sel != null && years.includes(sel) ? sel : years[0]
+  const rows = e.statewide_permits.filter((r) => r.year === y)
+  const fh = e.statewide_hunters.find((r) => r.year === y && r.method === 'firearms')
+  const took = fh && fh.hunters_total != null && fh.hunters_0_deer != null && fh.hunters_total > 0
+    ? 1 - fh.hunters_0_deer / fh.hunters_total : NaN
+  return (
+    <Card title="Permits vs harvest (statewide)">
+      <div class="flex items-center gap-2">
+        <label for="permit-year" class="text-fg-3">Season</label>
+        <select id="permit-year" class="min-h-[44px] rounded-lg bg-bg-3 border border-line px-2 text-fg"
+          value={y} onChange={(ev) => setSel(Number((ev.currentTarget as HTMLSelectElement).value))}>
+          {years.map((yy) => <option key={yy} value={yy}>{yy}-{String(yy + 1).slice(2)}</option>)}
+        </select>
+      </div>
+      {Number.isFinite(took) && (
+        <p>In {y}, <strong class="text-fg">{Math.round(took * 100)}%</strong> of firearms hunters took at least one deer
+          ({num(fh?.hunters_total ?? null)} hunters, {num(fh?.hunters_0_deer ?? null)} with none).</p>
+      )}
+      <div class="overflow-x-auto border border-line rounded">
+        <table class="text-xs w-full">
+          <thead class="bg-bg-3">
+            <tr>
+              <th class="text-left px-2 py-1 font-semibold text-fg-2">Permit</th>
+              <th class="text-right px-2 py-1 font-semibold text-fg-2">Permits issued</th>
+              <th class="text-right px-2 py-1 font-semibold text-fg-2">Deer harvested</th>
+              <th class="text-right px-2 py-1 font-semibold text-fg-2">Fill rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const fill = r.permits_issued != null && r.deer_harvested != null && r.permits_issued > 0 ? r.deer_harvested / r.permits_issued : NaN
+              return (
+                <tr key={r.permit_type} class="odd:bg-bg-2">
+                  <td class="px-2 py-1">{r.permit_label.replace(/^Permittee\s+/i, '')}</td>
+                  <td class="px-2 py-1 text-right tabular-nums">{num(r.permits_issued)}</td>
+                  <td class="px-2 py-1 text-right tabular-nums">{num(r.deer_harvested)}</td>
+                  <td class="px-2 py-1 text-right tabular-nums">{Number.isFinite(fill) ? `${(fill * 100).toFixed(1)}%` : '–'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-fg-3 flex justify-between"><span>Permits issued, deer checked on them, deer per permit (%)</span><span>Source: MDC</span></p>
+      <p>
+        Tags bought vs tags filled is only available statewide: MDC last published permit sales by county for the 2014
+        season, so county pages cannot show it. The county “hunters per square mile” numbers are people who reported
+        hunting that county (MDC permit and Telecheck records), not permits sold there.
+      </p>
+    </Card>
+  )
+}
 
 export default function AboutView() {
   const standalone = typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches
@@ -69,6 +134,8 @@ export default function AboutView() {
           how many standard deviations a county’s harvest per square mile sits above or below the state.
         </p>
       </Card>
+
+      <PermitsCard />
 
       <Card title="Known problems on MDC’s pages (and what we do)">
         <p>Every table is checked: county rows must add up to MDC’s printed total, or the build stops. A few pages have errors, handled like this:</p>

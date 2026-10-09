@@ -86,6 +86,12 @@ KNOWN_HUNTER_MISMATCHES: set[tuple[int, str]] = {(2019, "firearms")}
 CELL_ERRATA: dict[tuple[int, str, str], float] = {
     (2018, "29101", "harvest_per_sqmi"): 0.3,
     (2018, "29167", "harvest_per_sqmi"): 9.1,
+    # 2024 report prints Ste. Genevieve 3.0 / 1.3 and Macon 3.9 / 1.1 hunters per sq mi after 12.1-12.9 / 2.0-3.4 and
+    # 6.7-8.2 / 2.2-3.4 in 2021-2023 with flat harvest: misprints that would top "deer per hunter". Nulled.
+    (2024, "29186", "firearms_hunters_per_sqmi"): 3.0,
+    (2024, "29186", "archery_hunters_per_sqmi"): 1.3,
+    (2024, "29121", "firearms_hunters_per_sqmi"): 3.9,
+    (2024, "29121", "archery_hunters_per_sqmi"): 1.1,
 }
 
 # Header phrase -> field. Matched against the lowercased, whitespace-collapsed header; columns are ordered by position.

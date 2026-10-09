@@ -102,3 +102,47 @@ export function Neighbors({ rows, def, onSelect, season }: { rows: NeighborRow[]
     </Section>
   )
 }
+
+export interface Pressure {
+  published: boolean // false = MDC did not publish effort for this season (2015-17, 2025+)
+  firearms: number | null
+  archery: number | null
+  hunters: number // estimated hunters who hunted the county (density x land area), NaN when unknown
+  deerPerHunter: number
+  rankDph: [number, number]
+  rankDensity: [number, number]
+  tripsFirearms: number | null
+  tripsArchery: number | null
+}
+
+const dec = (v: number | null | undefined, d = 1) => (v != null && Number.isFinite(v) ? v.toFixed(d) : 'not published')
+const rankText = (r: [number, number]) => (r[0] > 0 ? ordinal(r[0]) : 'not ranked')
+
+/** Hunter density and effort from MDC's Deer Season Summary & Population Status Reports (deer only). */
+export function PressureBlock({ p, season, chart }: { p: Pressure; season: string; chart: ComponentChildren }) {
+  const note = 'Hunters who hunted this county per MDC permit/Telecheck records, whole season. Source: MDC Deer Season Summary & Population Status Reports.'
+  const hasDensity = p.firearms != null || p.archery != null
+  return (
+    <section class="border-t border-line pt-3 mt-3">
+      <h3 class="text-xs uppercase tracking-wide text-fg-3 mb-1.5">Hunting pressure · {season}</h3>
+      {!p.published ? (
+        <p class="text-sm text-fg-3 mb-2">Hunter density and effort: not published for this season.</p>
+      ) : (
+        <>
+          {!hasDensity && <p class="text-sm text-fg-3 mb-2">Hunter density: not published for this season.</p>}
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {hasDensity && <Stat label="Firearms hunters / sq mi" value={dec(p.firearms)} units="hunters per square mile" />}
+            {hasDensity && <Stat label="Archery hunters / sq mi" value={dec(p.archery)} units="hunters per square mile" />}
+            {hasDensity && <Stat label="Estimated hunters" value={Number.isFinite(p.hunters) ? `≈${p.hunters.toLocaleString('en-US')}` : '–'} units="density × land area" />}
+            {hasDensity && <Stat label="Deer per hunter-season" value={Number.isFinite(p.deerPerHunter) ? p.deerPerHunter.toFixed(2) : '–'} units={p.rankDph[0] > 0 ? `${rankText(p.rankDph)} of ${p.rankDph[1]} statewide` : 'deer checked per hunter'} />}
+            {hasDensity && <Stat label="Hunters / sq mi rank" value={rankText(p.rankDensity)} units={`of ${p.rankDensity[1]} counties statewide`} />}
+            {p.tripsFirearms != null && <Stat label="Trips per kill, firearms" value={dec(p.tripsFirearms)} units="hunting trips per deer" />}
+            {p.tripsArchery != null && <Stat label="Trips per kill, archery" value={dec(p.tripsArchery)} units="hunting trips per deer" />}
+          </div>
+        </>
+      )}
+      <div class="mt-2">{chart}</div>
+      <p class="text-[11px] text-fg-3 mt-1">{note}</p>
+    </section>
+  )
+}

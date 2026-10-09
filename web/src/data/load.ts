@@ -1,4 +1,4 @@
-import type { Attributes, CompactJson, County, CwdJson, Dataset, HarvestJson, Species } from './types'
+import type { Attributes, CompactJson, County, CwdJson, Dataset, EffortJson, HarvestJson, Species } from './types'
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
@@ -74,3 +74,5 @@ export const loadAttributes = () =>
   })
 
 export const loadCwd = () => once('cwd', () => getJson<CwdJson>('cwd.json'))
+
+export const loadEffort = () => once('effort', () => getJson<EffortJson>('effort.json'))
