@@ -12,6 +12,7 @@ python -m mohunt.build            # deer + turkey: parse cached pages, validate,
 python -m mohunt.county_dim       # data/county.json + data/counties.geojson (Census + MDC regions)
 python -m mohunt.cwd              # data/cwd.json from MDC ArcGIS
 python -m mohunt.overlays         # data/overlays.geojson: rivers, lakes, ecoregions, interstates, public land
+python -m mohunt.effort           # data/effort.json from MDC's 2018-2024 deer population status report PDFs
 python -m mohunt.build --refresh  # re-fetch MDC pages (2 s between requests, identifying user-agent)
 python -m pytest -q
 ```
@@ -101,6 +102,47 @@ Overlays are for eyeballing geography against harvest; they are generalized (~0.
 
 `{source, fetched, current_season, rows:[{county_fips, year, samples, positives, splits:{by_sex, by_age}}]}` from MDC's
 CWD_Fall_Reporting_Dashboard county aggregates, 2016 to the current season. `year` is the fall season (permit) year.
+
+### `data/effort.json`
+
+County hunting effort and statewide permit / hunter statistics parsed from MDC's annual "Missouri Deer Season Summary &
+Population Status Report" PDFs (2018–2024 seasons; cached in `data/raw/mdc/`). Wrapper:
+`{source, reports:{year:url}, fetched, notes:[...], county_effort, statewide_permits, statewide_hunters}`. `notes` lists
+every known source defect and caveat.
+
+`county_effort` — one row per county × report year (114 counties; St. Louis City is not in the regional tables):
+
+| Field | Type | Years | Notes |
+| --- | --- | --- | --- |
+| `county_fips` | string | all | 5-digit Census FIPS |
+| `year` | int | all | Season start year |
+| `harvest` | int | all | Report's total harvest (validated against `harvest.parquet`; prefer that for harvest) |
+| `harvest_per_sqmi` | float | 2018–19, 2021–24 | MDC's printed value; MDC's area base is not Census land area (urban counties differ most) |
+| `firearms_hunters_per_sqmi` | float | 2020–24 | Firearms hunters who hunted in the county per square mile |
+| `archery_hunters_per_sqmi` | float | 2020–24 | Archery hunters who hunted in the county per square mile |
+| `trips_per_kill_firearms` | float | 2018–22 | Hunting trips per deer harvested, firearms |
+| `trips_per_kill_archery` | float | 2020–22 | Hunting trips per deer harvested, archery |
+| `public_land_acres` | int | 2018–19 | Public land open to deer hunting (same inventory both years) |
+| `public_areas` | int | 2018–19 | Number of public hunting areas |
+
+Columns a year does not publish are `null`. Hunter density is the number of hunters who hunted that county, from MDC
+permit and Telecheck records, for the whole season — people, not permits or tags; a hunter who hunted several counties
+counts in each. County-level permit sales were last published by MDC for 2014, so permits below are statewide only.
+
+`statewide_permits` — `{year, permit_type, permit_label, permits_issued, deer_harvested, source_report}` for 2017–2024.
+Each report prints its year and the prior year; the later report wins. `permit_type` is a slug
+(`archery_any_deer`, `landowner_archery_any_deer`, `youth_archery_any_deer`, `archery_antlerless`, `firearms_any_deer`,
+`firearms_antlerless`, `resident_firearms`, `non_resident_firearms`, `resident_archery`, `non_resident_archery`, …);
+`permit_label` is MDC's printed label (2018–19 reports prefix "Permittee").
+
+`statewide_hunters` — `{year, method: archery|firearms|combined, hunters_total, hunters_0_deer, hunters_1_deer,
+hunters_2_deer, hunters_3plus_deer}` from each report's hunter statistics table. `combined` counts each person once across
+methods.
+
+Validation (`python -m mohunt.effort` exits 1 on failure): county harvest sums to each region's printed total; each
+per-square-mile column's county mean is within 0.15 of the printed regional average (known MDC exceptions are pinned in
+`effort.KNOWN_AVG_MISMATCHES`); 8 regions and 114 counties per year; county harvest within 1% of `harvest.parquet` or a
+WARN, and failure if more than 10% of a year's counties are over 5% off.
 
 ### County reference
 

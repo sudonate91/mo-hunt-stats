@@ -25,6 +25,17 @@
   icon paths respect the Pages base; negative bars; species compare uses one reduced filter on both sides; share
   buttons on every chart and the map; roving tabindex on the map; Escape closes menus.
 
+### Hunting effort (added after launch, from user questions "tags bought vs filled" / "more hunters in Franklin?")
+- `scraper/mohunt/effort.py` parses MDC's annual Deer Season Summary & Population Status Report PDFs (2018–2024, cached
+  in `data/raw/mdc/`) → `data/effort.json`: per county firearms/archery hunters per sq mi (2020–2024), trips per kill
+  (2018–2022), public-land acres (2018–2019); statewide permits issued vs deer harvested by permit type (2017–2024);
+  hunter success distribution. Regional totals reconcile; 10 printed regional averages that don't match their county
+  means are pinned in `KNOWN_AVG_MISMATCHES`; two typo cells nulled in `CELL_ERRATA`.
+- Web: metrics hunters_per_sqmi, firearms/archery_hunters_per_sqmi, deer_per_hunter (harvest ÷ density×area),
+  trips_per_kill; county card "Hunting pressure"; Compare rows; About "Permits vs harvest" table.
+- Not available anywhere: county-level permit sales (MDC last published them for permit year 2014), so "tags bought vs
+  tags filled" is statewide only.
+
 ### Known gaps
 - `county.json` `bear_management_zone` / `cwd_zone` are null (zones don't follow county lines; needs a decision).
 - Phone layout stacks map then chart (chart below the fold at 360×740); both are on screen on tablet/desktop.

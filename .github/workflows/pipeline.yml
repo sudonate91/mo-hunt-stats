@@ -61,6 +61,7 @@ jobs:
             python -m mohunt.county_dim
             python -m mohunt.overlays
             python -m mohunt.cwd --refresh
+            python -m mohunt.effort
           else
             python -m mohunt.build
           fi
