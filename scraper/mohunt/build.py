@@ -46,8 +46,8 @@ ATTR_SCHEMA = pa.schema([
     ("public_land", pa.int32()),
     ("crossbow", pa.int32()),
 ])
-JSON_COLUMNS = ["species", "season_year", "season", "portion", "method", "youth", "is_subtotal", "derived",
-                "county_fips", "class", "count"]
+JSON_COLUMNS = ["season_year", "portion", "county_fips", "class", "count"]
+PORTION_META_KEYS = ("season", "method", "youth", "is_subtotal")
 ATTR_COLUMNS = ["species", "season_year", "portion", "county_fips", "public_land", "crossbow"]
 
 
@@ -89,15 +89,35 @@ def page_to_rows(species: str, page, chosen: dict[str, HarvestTable]) -> tuple[l
 
 
 def compact_json(rows: list[dict], columns: list[str] = JSON_COLUMNS, *, labels: bool = True) -> dict:
-    """Column-ordered row arrays; per-(species, year, portion) labels and URLs live in a lookup."""
-    out: dict = {"state": "MO", "columns": columns, "rows": [[r[c] for c in columns] for r in rows]}
-    if labels:
-        lab: dict[str, dict] = {}
-        for r in rows:
-            lab.setdefault(f"{r['species']}:{r['season_year']}:{r['portion']}",
-                           {"portion_label": r["portion_label"], "source_url": r["source_url"]})
-        out["labels"] = lab
-    return out
+    """Browser format. With labels=True (harvest facts): pivoted — one array of counts per
+    (season_year, portion, class) in a fixed county order, plus per-portion attributes and per-(year, portion)
+    labels. Zeros are explicit so arrays are dense. Without labels (attributes): column-ordered row arrays."""
+    if not labels:
+        return {"state": "MO", "columns": columns, "rows": [[r[c] for c in columns] for r in rows]}
+    county_order = sorted({r["county_fips"] for r in rows})
+    cidx = {f: i for i, f in enumerate(county_order)}
+    classes = sorted({r["class"] for r in rows})
+    portions: dict[str, dict] = {}
+    lab: dict[str, dict] = {}
+    series: dict[tuple[int, str, str], list[int]] = {}
+    for r in rows:
+        meta = {k: r[k] for k in PORTION_META_KEYS}
+        prev = portions.setdefault(r["portion"], meta)
+        if prev != meta:
+            raise RuntimeError(f"portion {r['portion']} has inconsistent attributes: {prev} vs {meta}")
+        lab.setdefault(f"{r['species']}:{r['season_year']}:{r['portion']}",
+                       {"portion_label": r["portion_label"], "source_url": r["source_url"], "derived": r["derived"]})
+        arr = series.setdefault((r["season_year"], r["portion"], r["class"]), [0] * len(county_order))
+        arr[cidx[r["county_fips"]]] += r["count"]
+    return {
+        "state": "MO",
+        "species": rows[0]["species"] if rows else None,
+        "counties": county_order,
+        "classes": classes,
+        "portions": portions,
+        "series": [[y, p, c, arr] for (y, p, c), arr in sorted(series.items())],
+        "labels": lab,
+    }
 
 
 def dump_json(path, obj) -> None:

@@ -2,12 +2,24 @@ export type Species = 'deer' | 'turkey'
 export type Season = 'spring' | 'fall'
 export type Method = 'firearm' | 'archery' | 'mixed'
 
-/** Compact JSON shape written by scraper/mohunt/build.py compact_json(). */
+/** Row-array JSON (turkey_attributes.json) written by scraper/mohunt/build.py compact_json(labels=False). */
 export interface CompactJson {
   state: string
   columns: string[]
   rows: (string | number | boolean)[][]
-  labels?: Record<string, { portion_label: string; source_url: string }>
+}
+
+export interface PortionMeta { season: Season; method: Method; youth: boolean; is_subtotal: boolean }
+
+/** Pivoted harvest JSON (harvest_<species>.json): one dense county array per (year, portion, class). */
+export interface HarvestJson {
+  state: string
+  species: Species
+  counties: string[] // fips, order of every counts array
+  classes: string[]
+  portions: Record<string, PortionMeta>
+  series: [number, string, string, number[]][] // [season_year, portion, class, counts by county]
+  labels: Record<string, { portion_label: string; source_url: string; derived: boolean }>
 }
 
 export interface County {
@@ -60,7 +72,8 @@ export interface Dataset {
     county: string[] // fips
   }
   years: number[] // sorted distinct season years
-  labels: Record<string, { portion_label: string; source_url: string }>
+  labels: Record<string, { portion_label: string; source_url: string; derived: boolean }>
+  portionMeta: Record<string, PortionMeta>
 }
 
 export interface Attributes {

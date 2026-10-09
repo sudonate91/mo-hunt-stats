@@ -6,7 +6,7 @@ import pytest
 
 from conftest import SEASONS, get_page
 from mohunt import counties
-from mohunt.build import JSON_COLUMNS, SCHEMA, compact_json, page_to_rows
+from mohunt.build import SCHEMA, compact_json, page_to_rows
 from mohunt.counties import UnknownCountyError, to_fips
 from mohunt.deer import CLASS_COLUMNS, ParseError, classify, parse_int
 from mohunt.validate import ERRATA, column_sums
@@ -167,6 +167,8 @@ def test_page_to_rows_and_json(year, pages, checked):
     assert len(keys) == 14
     assert all(set(r) == keys for r in rows)
     cj = compact_json(rows)
-    assert cj["columns"] == JSON_COLUMNS
-    assert len(cj["rows"]) == len(rows)
-    assert all(len(r) == len(cj["columns"]) for r in cj["rows"])
+    n = len(cj["counties"])
+    assert all(len(s[3]) == n for s in cj["series"])
+    assert sum(sum(s[3]) for s in cj["series"]) == sum(r["count"] for r in rows)
+    assert set(cj["portions"]) == {t.portion for t in chosen.values()}
+    assert cj["species"] == "deer"

@@ -1,4 +1,4 @@
-import type { Attributes, CompactJson, County, CwdJson, Dataset, Species } from './types'
+import type { Attributes, CompactJson, County, CwdJson, Dataset, HarvestJson, Species } from './types'
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 
@@ -8,56 +8,43 @@ async function getJson<T>(path: string): Promise<T> {
   return r.json() as Promise<T>
 }
 
-function encode(values: string[]): { codes: Uint8Array; dict: string[] } {
-  const dict: string[] = []
-  const idx = new Map<string, number>()
-  const codes = new Uint8Array(values.length)
-  for (let i = 0; i < values.length; i++) {
-    let c = idx.get(values[i])
-    if (c === undefined) {
-      c = dict.length
-      dict.push(values[i])
-      idx.set(values[i], c)
-    }
-    codes[i] = c
-  }
-  return { codes, dict }
-}
-
-export function toDataset(j: CompactJson, species: Species, countyOrder: string[]): Dataset {
-  const col = (name: string) => j.columns.indexOf(name)
-  const iYear = col('season_year'), iSeason = col('season'), iPortion = col('portion'), iMethod = col('method')
-  const iYouth = col('youth'), iSub = col('is_subtotal'), iDer = col('derived'), iCounty = col('county_fips')
-  const iCls = col('class'), iCount = col('count')
-  const n = j.rows.length
+export function toDataset(j: HarvestJson, species: Species, countyOrder: string[]): Dataset {
+  const countyIdx = new Map(countyOrder.map((f, i) => [f, i]))
+  const jc = j.counties.map((f) => {
+    const i = countyIdx.get(f)
+    if (i === undefined) throw new Error(`unknown county ${f}`)
+    return i
+  })
+  // Count non-zero cells first so the typed arrays are allocated once.
+  let n = 0
+  for (const s of j.series) for (const v of s[3]) if (v) n++
   const year = new Int16Array(n), youth = new Uint8Array(n), isSubtotal = new Uint8Array(n)
   const derived = new Uint8Array(n), count = new Int32Array(n), county = new Uint8Array(n)
-  const countyIdx = new Map(countyOrder.map((f, i) => [f, i]))
-  const seasonS: string[] = [], portionS: string[] = [], methodS: string[] = [], clsS: string[] = []
+  const season = new Uint8Array(n), portion = new Uint8Array(n), method = new Uint8Array(n), cls = new Uint8Array(n)
+  const dict = { season: [] as string[], portion: [] as string[], method: [] as string[], cls: j.classes.slice(), county: countyOrder }
+  const code = (list: string[], v: string) => { let i = list.indexOf(v); if (i < 0) { i = list.length; list.push(v) } return i }
   const yearSet = new Set<number>()
-  for (let i = 0; i < n; i++) {
-    const r = j.rows[i]
-    year[i] = r[iYear] as number
-    yearSet.add(year[i])
-    youth[i] = r[iYouth] ? 1 : 0
-    isSubtotal[i] = r[iSub] ? 1 : 0
-    derived[i] = r[iDer] ? 1 : 0
-    count[i] = r[iCount] as number
-    const ci = countyIdx.get(r[iCounty] as string)
-    if (ci === undefined) throw new Error(`unknown county ${r[iCounty]}`)
-    county[i] = ci
-    seasonS.push(r[iSeason] as string)
-    portionS.push(r[iPortion] as string)
-    methodS.push(r[iMethod] as string)
-    clsS.push(r[iCls] as string)
+  let k = 0
+  for (const [y, p, c, counts] of j.series) {
+    const meta = j.portions[p]
+    const pc = code(dict.portion, p), sc = code(dict.season, meta.season), mc = code(dict.method, meta.method)
+    const cc = dict.cls.indexOf(c)
+    const der = j.labels[`${species}:${y}:${p}`]?.derived ? 1 : 0
+    yearSet.add(y)
+    for (let i = 0; i < counts.length; i++) {
+      const v = counts[i]
+      if (!v) continue
+      year[k] = y; portion[k] = pc; season[k] = sc; method[k] = mc; cls[k] = cc
+      youth[k] = meta.youth ? 1 : 0; isSubtotal[k] = meta.is_subtotal ? 1 : 0; derived[k] = der
+      county[k] = jc[i]; count[k] = v
+      k++
+    }
   }
-  const season = encode(seasonS), portion = encode(portionS), method = encode(methodS), cls = encode(clsS)
   return {
-    species, n, year, youth, isSubtotal, derived, count, county,
-    season: season.codes, portion: portion.codes, method: method.codes, cls: cls.codes,
-    dict: { season: season.dict, portion: portion.dict, method: method.dict, cls: cls.dict, county: countyOrder },
+    species, n, year, youth, isSubtotal, derived, count, county, season, portion, method, cls, dict,
     years: [...yearSet].sort((a, b) => a - b),
     labels: j.labels ?? {},
+    portionMeta: j.portions,
   }
 }
 
@@ -72,7 +59,7 @@ export const loadCounties = () => once('counties', () => getJson<County[]>('coun
 
 export const loadDataset = (species: Species) =>
   once(`ds:${species}`, async () => {
-    const [j, counties] = await Promise.all([getJson<CompactJson>(`harvest_${species}.json`), loadCounties()])
+    const [j, counties] = await Promise.all([getJson<HarvestJson>(`harvest_${species}.json`), loadCounties()])
     return toDataset(j, species, counties.map((c) => c.fips))
   })
 

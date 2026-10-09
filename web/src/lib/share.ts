@@ -7,7 +7,7 @@
  * (navigator.share with files); everything else downloads the file.
  */
 
-const BG = '#121212', FG = '#f2f2f2', FG2 = '#b5b5b8', FG3 = '#7d7d82', BLAZE = '#ff6a13'
+const BG = '#121212', FG = '#f2f2f2', FG2 = '#b5b5b8', FG3 = '#939399', BLAZE = '#ff6a13'
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
 const CREDIT = 'Source: Missouri Department of Conservation · mo-hunt-stats'
 const SCALE = 2, PAD = 20

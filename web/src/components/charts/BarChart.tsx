@@ -38,7 +38,7 @@ export function HBarChart({ bars, units, title, onSelect, maxBars = 15, id, form
                 <rect x="0" y="0" width="400" height={rowH - 2} fill="transparent" />
                 <text x={labelW - 6} y={rowH / 2 + 3} text-anchor="end" font-size="12" fill={b.highlight ? '#ffd166' : '#b5b5b8'}>{b.label}</text>
                 <rect x={labelW} y="4" width={Math.max(1, w)} height={rowH - 10} rx="3" fill={b.highlight ? '#ffd166' : '#ff6a13'} />
-                <text x={labelW + w + 6} y={rowH / 2 + 3} font-size="12" fill="#f2f2f2">{format(b.value)}{b.sub ? <tspan fill="#7d7d82"> {b.sub}</tspan> : null}</text>
+                <text x={labelW + w + 6} y={rowH / 2 + 3} font-size="12" fill="#f2f2f2">{format(b.value)}{b.sub ? <tspan fill="#939399"> {b.sub}</tspan> : null}</text>
               </g>
             )
           })}
@@ -81,7 +81,7 @@ export function StackedBarChart({ groups, categories, units, title, colors, id, 
             {[0, 0.25, 0.5, 0.75, 1].map((t) => (
               <g key={t}>
                 <line x1={padL} x2={W - 8} y1={y(max * t)} y2={y(max * t)} stroke="#2a2a2c" />
-                <text x={padL - 4} y={y(max * t) + 4} text-anchor="end" font-size="10" fill="#7d7d82">{fmt(max * t)}</text>
+                <text x={padL - 4} y={y(max * t) + 4} text-anchor="end" font-size="10" fill="#939399">{fmt(max * t)}</text>
               </g>
             ))}
             {groups.map((g, gi) => {
