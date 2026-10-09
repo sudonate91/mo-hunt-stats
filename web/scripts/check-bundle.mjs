@@ -13,7 +13,8 @@ const BUDGET_INITIAL_GZ = 150 * 1024
 const REGRESSION_TOLERANCE = 0.05
 
 const html = readFileSync(join(dist, 'index.html'), 'utf8')
-const refs = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map((m) => m[1].replace(/^\.?\//, ''))
+// Asset URLs may carry a base path (e.g. /mo-hunt-stats/assets/x.js); keep only the part from assets/ onward.
+const refs = [...html.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map((m) => m[1].replace(/^.*?(assets\/)/, '$1'))
 const gz = (p) => gzipSync(readFileSync(join(dist, p))).length
 
 const initial = {}
