@@ -18,6 +18,28 @@ python -m pytest -q
 The build fails (exit 1, nothing written) if any table's county rows do not sum to MDC's printed total.
 Raw HTML snapshots are committed under `data/raw/` so builds and tests are reproducible offline.
 
+## Setup (web app)
+
+```bash
+cd web
+npm ci
+npm run dev        # http://localhost:5173 (copies data/*.json into public/data and projects the county map first)
+npm run build      # typecheck + production build into web/dist
+node scripts/check-bundle.mjs   # bundle budget: initial JS ≤ 150 KB gz, no >5% regression vs bundle-baseline.json
+```
+
+Stack: Vite, Preact, TypeScript (strict), Tailwind v4, uPlot for lines, hand-built SVG for bars and the county map
+(pre-projected to path strings at build time by `scripts/build-map.mjs`, Albers conic). State lives in Preact signals and
+mirrors to URL query params, so every view is shareable. PWA via vite-plugin-pwa (app shell precached, data JSON
+stale-while-revalidate).
+
+## CI / deployment
+
+`.github/workflows/pipeline.yml`: scrape → validate (tests) → build → bundle budget + Lighthouse (mobile ≥ 90) → deploy to
+GitHub Pages. Runs on push, weekly on Mondays during September–January, monthly otherwise. Scheduled runs re-fetch MDC
+pages and commit refreshed `data/` back to `main`; a validation failure fails the run and the last good site stays live.
+Enable Pages with source "GitHub Actions" in the repo settings.
+
 ## Data dictionary
 
 ### `data/harvest.parquet` — one row per state × species × season × portion × county × class
