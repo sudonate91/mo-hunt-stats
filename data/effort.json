@@ -9,7 +9,7 @@
   "2023": "https://mdc.mo.gov/sites/default/files/2025-07/2023%20pop%20status%20report%2020250604.pdf",
   "2024": "https://mdc.mo.gov/sites/default/files/2026-02/2024_pop_status_report.pdf"
  },
- "fetched": "2026-10-09",
+ "fetched": "2026-10-12",
  "notes": [
   "Hunter density (firearms/archery hunters per square mile) counts hunters who reported hunting in that county, per MDC permit and Telecheck records, for the whole season; it is people per county, not permits or tags. A hunter who hunted several counties is counted in each.",
   "County-level permit sales were last published by MDC for 2014; statewide_permits is statewide only.",
